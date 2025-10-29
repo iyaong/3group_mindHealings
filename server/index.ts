@@ -16,6 +16,7 @@ import cookieParser from 'cookie-parser';
 import { MongoClient } from 'mongodb';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import OpenAI from 'openai';
 
 // 환경변수: MONGO_URI(외부 IP 포함), DB_NAME, PORT
 const MONGO_URI = process.env.MONGO_URI || '';
@@ -23,6 +24,7 @@ const DB_NAME = process.env.DB_NAME || 'appdb';
 // Vite proxy in vite.config.ts targets 7780; use that as default here for out-of-the-box dev.
 const PORT = Number(process.env.PORT || 7780);
 const JWT_SECRET = process.env.JWT_SECRET || 'dev_secret';
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY || '';
 
 function assertEnv() {
   const missing: string[] = [];
@@ -72,6 +74,7 @@ async function ensureIndexes() {
     const db = client.db(DB_NAME);
     await db.collection('users').createIndex({ email: 1 }, { unique: true, name: 'uniq_email' });
   await db.collection('messages').createIndex({ userId: 1, createdAt: 1 }, { name: 'by_user_time' });
+  await db.collection('ai_messages').createIndex({ userId: 1, createdAt: 1 }, { name: 'ai_by_user_time' });
   } catch (e) {
     console.warn('Index creation skipped:', (e as Error).message);
   }
@@ -208,6 +211,60 @@ app.post('/api/chat', authMiddleware, async (req: any, res) => {
   }
 });
 
+// AI Chat proxy: POST /api/ai/chat { messages: [{role, content}], model? }
+app.post('/api/ai/chat', authMiddleware, async (req: any, res) => {
+  try {
+    if (!OPENAI_API_KEY) return res.status(500).json({ message: 'OPENAI_API_KEY 미설정' });
+    const { messages, model } = req.body || {};
+    if (!Array.isArray(messages) || messages.length === 0) {
+      return res.status(400).json({ message: 'messages 배열이 필요합니다.' });
+    }
+    const openai = new OpenAI({ apiKey: OPENAI_API_KEY });
+    const resp = await openai.chat.completions.create({
+      model: model || 'gpt-4o-mini',
+      messages: messages.map((m: any) => ({ role: m.role, content: String(m.content) })),
+      temperature: 0.7,
+    });
+    const content = resp.choices?.[0]?.message?.content ?? '';
+    // persist user last message + assistant reply
+    try {
+      const client = await getClient();
+      const db = client.db(DB_NAME);
+      const userId = req.user.sub;
+      const last = messages[messages.length - 1];
+      if (last?.role === 'user') {
+        await db.collection('ai_messages').insertOne({ userId, role: 'user', content: String(last.content || ''), createdAt: new Date() });
+      }
+      await db.collection('ai_messages').insertOne({ userId, role: 'assistant', content, createdAt: new Date() });
+    } catch (persistErr) {
+      console.warn('persist ai_messages failed:', (persistErr as Error).message);
+    }
+    res.json({ ok: true, content });
+  } catch (e: any) {
+    console.error('AI chat error:', e?.message || e);
+    res.status(500).json({ message: 'AI 응답 생성 중 오류' });
+  }
+});
+
+// AI chat history
+app.get('/api/ai/history', authMiddleware, async (req: any, res) => {
+  try {
+    const client = await getClient();
+    const db = client.db(DB_NAME);
+    const userId = req.user.sub;
+    const items = await db
+      .collection('ai_messages')
+      .find({ userId })
+      .sort({ createdAt: 1 })
+      .limit(500)
+      .project({ _id: 0, userId: 0 })
+      .toArray();
+    res.json({ ok: true, items });
+  } catch (e) {
+    res.status(500).json({ message: 'AI 대화 이력 조회 오류' });
+  }
+});
+
 app.get('/api/health', async (_req, res) => {
   try {
     const client = await getClient();
@@ -228,6 +285,28 @@ app.get('/api/debug/db-info', async (_req, res) => {
     res.json({ ok: true, dbName: DB_NAME, counts: { users: usersCount, messages: messagesCount } });
   } catch (e) {
     res.status(500).json({ ok: false, message: 'debug info error' });
+  }
+});
+
+app.get('/api/debug/list-dbs', async (_req, res) => {
+  try {
+    const client = await getClient();
+    const admin = client.db('admin');
+    const dbs = await admin.admin().listDatabases();
+    res.json({ ok: true, databases: dbs.databases.map(d => ({ name: d.name, sizeOnDisk: d.sizeOnDisk })) });
+  } catch (e) {
+    res.status(500).json({ ok: false, message: 'list dbs error' });
+  }
+});
+
+app.get('/api/debug/list-collections', async (_req, res) => {
+  try {
+    const client = await getClient();
+    const db = client.db(DB_NAME);
+    const cols = await db.listCollections().toArray();
+    res.json({ ok: true, dbName: DB_NAME, collections: cols.map(c => c.name) });
+  } catch (e) {
+    res.status(500).json({ ok: false, message: 'list collections error' });
   }
 });
 
