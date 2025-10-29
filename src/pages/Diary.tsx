@@ -1,127 +1,321 @@
-// Diary.tsx
-// 다이어리 페이지입니다.
+// Diary.tsx — 날짜별 다이어리 + AI 대화 저장/조회
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../hooks/useAuth';
 
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+type DiaryListItem = {
+    _id: string;
+    date: string; // YYYY-MM-DD
+    title?: string;
+    mood?: { emotion: string; score: number; color: string } | null;
+    lastUpdatedAt: string;
+    preview?: string;
+};
+
+type DiaryMessage = { id?: string; role: 'user' | 'assistant'; content: string; createdAt?: string };
+
+function todayKey() {
+    const d = new Date();
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+}
 
 export default function Diary() {
-
-    // navigate: 페이지를 이동할 때 사용
     const navigate = useNavigate();
-    
-    // <1> 다이어리 페이지 활성화 상태 - 기본값: true
-    const [displayDiary, setDisplayDiary] = useState(true);
+    const { user, loading } = useAuth();
 
-    // <2> 대화 매칭 팝업 (색이 비슷한 상대와 대화해 보시겠습니까?) 활성화 상태 - 기본값: true
-    const [displaySearchPop, setDisplaySearchPop] = useState(true);
+        const [list, setList] = useState<DiaryListItem[]>([]); // 세션 목록
+        const [selected, setSelected] = useState<string>(''); // 선택된 세션 ID
+        const [selectedDate, setSelectedDate] = useState<string>(todayKey());
+    const [messages, setMessages] = useState<DiaryMessage[]>([]);
+            // 제목 기능 제거: 더 이상 사용하지 않음
+    const [mood, setMood] = useState<{ emotion: string; score: number; color: string } | null>(null);
+    const [input, setInput] = useState('');
+    const [sending, setSending] = useState(false);
+    const [loadingDiary, setLoadingDiary] = useState(false);
+    const bottomRef = useRef<HTMLDivElement | null>(null);
 
-    // <3> 대화 매칭 대기 페이지 활성화 상태 - 기본값: false
-    const [displayWait, setDisplayWait] = useState(false);
+    useEffect(() => {
+        if (loading) return;
+        if (!user) navigate('/login');
+    }, [loading, user, navigate]);
 
-    // <3> 대화 매칭 대기 페이지 안내 메시지
-    const [waitMessage, setWaitMessage] = useState("당신의 마음을 읽어줄 사람을 기다리는 중...");
+    const bgStyle = useMemo(() => {
+        const c = mood?.color || '#f4f4f5';
+        const overlay = 'rgba(255,255,255,0.65)';
+        return {
+            background: `linear-gradient(135deg, ${c} 0%, ${c} 40%, ${overlay} 100%)`,
+        } as React.CSSProperties;
+    }, [mood]);
 
-    // <3-1> 대화 매칭 취소 버튼 활성화 상태
-    const [displayCancel, setDisplayCancel] = useState(true);
+      const refreshList = async () => {
+        try {
+          // 세션 목록 조회
+          const res = await fetch('/api/diary/sessions', { credentials: 'include' });
+            if (!res.ok) return;
+            const data = await res.json();
+            if (Array.isArray(data?.items)) {
+                setList(data.items.map((d: any) => ({ ...d, _id: String(d._id) })));
+            }
+        } catch {}
+    };
 
-    // search: 내 기분에 맞는 대화 상대 찾기
-    const search = () => {
+      const loadSession = async (sessionId: string) => {
+        try {
+            setLoadingDiary(true);
+          const res = await fetch(`/api/diary/session/${sessionId}`, { credentials: 'include' });
+            if (!res.ok) return;
+                    const data = await res.json();
+            const msgs: DiaryMessage[] = Array.isArray(data?.messages)
+                        ? data.messages.map((m: any) => ({ id: m.id, role: m.role, content: m.content, createdAt: m.createdAt }))
+                : [];
+            setMessages(msgs);
+          setMood(data?.session?.mood ?? null);
+          setSelectedDate(String(data?.session?.date || todayKey()));
+            await refreshList();
+        } catch {}
+        finally { setLoadingDiary(false); }
+    };
 
-        // <2> 대화 매칭 팝업 열기
-        setDisplaySearchPop(true);
-    }
+        // 첫 진입 시 세션이 없으면 자동 생성/선택, 있으면 최신 세션 자동 선택
+        useEffect(() => {
+            if (loading || !user) return;
+            (async () => {
+                try {
+                    const res = await fetch('/api/diary/sessions', { credentials: 'include' });
+                    if (!res.ok) return;
+                    const data = await res.json();
+                    const items: any[] = Array.isArray(data?.items) ? data.items : [];
+                    setList(items.map((d: any) => ({ ...d, _id: String(d._id) })));
+                    if (items.length === 0) {
+                        // 첫 세션 자동 생성
+                        await createToday();
+                    } else {
+                        const id = String(items[0]._id);
+                        setSelected(id);
+                        await loadSession(id);
+                    }
+                } catch {
+                    // ignore
+                }
+            })();
+            // eslint-disable-next-line react-hooks/exhaustive-deps
+        }, [loading, user]);
 
-    // searchPopYes: 색이 비슷한 상대와 대화해 보시겠습니까? -> 예
-    const searchPopYes = () => {
+    useEffect(() => {
+        bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, [messages, sending]);
 
-        // <1> 다이어리 페이지 비활성화
-        setDisplayDiary(false);
+    const send = async () => {
+        const text = input.trim();
+        if (!text || sending) return;
+        setSending(true);
+        const optimistic = [...messages, { role: 'user' as const, content: text }];
+        setMessages(optimistic);
+        setInput('');
+        try {
+            // 임시 타이핑 표시
+            setMessages((prev) => [...prev, { role: 'assistant', content: '…' }]);
+            const res = await fetch(`/api/diary/session/${selected}/chat`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({ text }),
+            });
+            if (!res.ok) {
+                setMessages((prev) => [...prev.slice(0, -1), { role: 'assistant', content: '답변 생성에 실패했습니다.' }]);
+                return;
+            }
+            const data = await res.json();
+            setMessages((prev) => [...prev.slice(0, -1), { role: 'assistant', content: data?.assistant?.content || '' }]);
+            setMood(data?.mood ?? null);
+            await refreshList();
+        } catch {
+            setMessages((prev) => [...prev.slice(0, -1), { role: 'assistant', content: '네트워크 오류가 발생했습니다.' }]);
+        } finally {
+            setSending(false);
+        }
+    };
 
-        // <2> 대화 매칭 팝업 닫기
-        setDisplaySearchPop(false);
+    const onKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+        if (e.key === 'Enter' && !e.shiftKey && !(e as any).nativeEvent?.isComposing) {
+            e.preventDefault();
+            void send();
+        }
+    };
 
-        // <3> 대화 매칭 대기 페이지 활성화
-        setDisplayWait(true);
+    const deleteSession = async (id: string) => {
+        if (!id) return;
+        if (!confirm('이 대화 전체를 삭제할까요? 되돌릴 수 없습니다.')) return;
+        try {
+            const res = await fetch(`/api/diary/session/${id}`, { method: 'DELETE', credentials: 'include' });
+            if (res.ok) {
+                // 목록 갱신 및 선택 상태 정리
+                const nextList = list.filter(s => s._id !== id);
+                setList(nextList);
+                if (selected === id) {
+                    if (nextList.length > 0) {
+                        setSelected(nextList[0]._id);
+                        setSelectedDate(nextList[0].date);
+                        await loadSession(nextList[0]._id);
+                    } else {
+                        setSelected('');
+                        setMessages([]);
+                        setMood(null);
+                    }
+                } else {
+                    await refreshList();
+                }
+            } else {
+                let msg = '삭제에 실패했습니다.';
+                try { const j = await res.json(); if (j?.message) msg = j.message; } catch {}
+                alert(msg);
+            }
+        } catch {}
+    };
 
-        // <3> 대화 매칭 대기 페이지 안내 메시지 업데이트
-        setWaitMessage("당신의 마음을 읽어줄 사람을 기다리는 중...");
+        const createToday = async () => {
+            try {
+                const res = await fetch('/api/diary/session', { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify({ date: todayKey() }) });
+                if (!res.ok) return;
+                const data = await res.json();
+                const id = String(data?.id);
+                setSelected(id);
+                await loadSession(id);
+            } catch {}
+        };
 
-        // <3-1> 대화 매칭 취소 버튼 활성화
-        setDisplayCancel(true);
-    }
+                // 제목 저장 기능 제거
 
-    // searchPopNo: 색이 비슷한 상대와 대화해 보시겠습니까? -> 아니오
-    const searchPopNo = () => {
+    // 개별 메시지 삭제 기능 제거 (세션 단위 삭제만 허용)
 
-        // <2> 대화 매칭 팝업 닫기
-        setDisplaySearchPop(false);
-    }
+            const continueGen = async () => {
+            if (sending) return;
+            setSending(true);
+            // 타이핑 표시
+            setMessages((prev) => [...prev, { role: 'assistant', content: '…' }]);
+            try {
+                    const res = await fetch(`/api/diary/session/${selected}/continue`, { method: 'POST', credentials: 'include' });
+                if (!res.ok) {
+                    setMessages((prev) => [...prev.slice(0, -1), { role: 'assistant', content: '생성 실패. 잠시 후 다시 시도해 주세요.' }]);
+                    return;
+                }
+                const data = await res.json();
+                setMessages((prev) => [...prev.slice(0, -1), { role: 'assistant', content: data?.assistant?.content || '' }]);
+                await refreshList();
+            } catch {
+                setMessages((prev) => [...prev.slice(0, -1), { role: 'assistant', content: '네트워크 오류가 발생했습니다.' }]);
+            } finally {
+                setSending(false);
+            }
+        };
 
-    // cancelWait: 매칭 취소
-    const cancelWait = () => {
-
-        // <1> 다이어리 페이지 활성화
-        setDisplayDiary(true);
-
-        // <3> 대화 매칭 대기 페이지 비활성화
-        setDisplayWait(false);
-    }
-
-    // [임시]forceSearchComplete: [임시]강제로 매칭 완료하기
-    const forceSearchComplete = () => {
-
-        // <3> 대화 매칭 대기 페이지 안내 메시지 업데이트
-        setWaitMessage("상대를 찾았습니다!");
-
-        // <3-1> 대화 매칭 취소 버튼 비활성화
-        setDisplayCancel(false);
-
-        // 3초(3000ms) 뒤에 채팅 페이지로 이동
-        setTimeout(() => {
-
-            // 페이지 이동("경로");
-            navigate("/chat");
-
-        }, 3000);
-    }
+        const Bubble = (m: DiaryMessage, i: number) => {
+        const mine = m.role === 'user';
+        return (
+                <div key={m.id || i} style={{ display: 'flex', justifyContent: mine ? 'flex-end' : 'flex-start', marginBottom: 8 }}>
+                {!mine && (
+                    <div aria-hidden style={{ width: 26, height: 26, borderRadius: 13, background: '#eee', color: '#333', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, marginRight: 8 }}>AI</div>
+                )}
+                    <div style={{ position: 'relative', maxWidth: '70%', whiteSpace: 'pre-wrap', wordBreak: 'break-word', background: mine ? '#2563eb' : '#f1f5f9', color: mine ? '#fff' : '#111', padding: '8px 12px', borderRadius: 12, borderTopRightRadius: mine ? 2 : 12, borderTopLeftRadius: mine ? 12 : 2 }}>
+                    {m.content}
+                        {/* 메시지 삭제 버튼 제거 */}
+                </div>
+                {mine && (
+                    <div aria-hidden style={{ width: 26, height: 26, borderRadius: 13, background: '#c7d2fe', color: '#111', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, marginLeft: 8 }}>나</div>
+                )}
+            </div>
+        );
+    };
 
     return (
-        <>
-            {/* <1> 다이어리 페이지 -시작- */}
-            {displayDiary && (
-                <div>
-                    <h2>다이어리 페이지</h2>
-                    <button onClick={search}>내 기분에 맞는 대화 상대 찾기</button>
+        <div style={{ display: 'grid', gridTemplateColumns: '280px 1fr', gap: 0, minHeight: 'calc(100vh - 56px)' }}>
+            {/* 좌측: 목록 + 툴바 */}
+            <aside style={{ borderRight: '1px solid #e5e7eb', padding: 12 }}>
+                {/* 상단 툴바: 대화 더 생성만 */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                    <button onClick={() => void continueGen()} title="대화 더 생성" style={{ padding: '6px 10px', border: '1px solid #2563eb', borderRadius: 8, background: '#eef2ff', color: '#1e3a8a', cursor: 'pointer' }}>대화 추가</button>
                 </div>
-            )}
-            {/* <1> 다이어리 페이지 -끝- */}
 
-            {/* <2> 대화 매칭 팝업 -시작- */}
-            {displaySearchPop && (
-                <div>
-                    <p>오늘 당신의 기분은 "" 색이네요</p>
-                    <p>색이 비슷한 상대와 대화해 보시겠습니까?</p>
-                    <button onClick={searchPopYes}>예</button>
-                    <button onClick={searchPopNo}>아니오</button>
-                </div>
-            )}
-            {/* <2> 대화 매칭 팝업 -끝- */}
-
-            {/* <3> 대화 매칭 대기 페이지 -시작- */}
-            {displayWait && (
-                <div>
-                    <p>{waitMessage}</p>
-                    {/* <3-1> 대화 매칭 취소 버튼 -시작- */}
-                    {displayCancel && (
-                        <div>
-                            <button onClick={cancelWait}>매칭 취소</button>
-                            <button onClick={forceSearchComplete}>[임시]강제로 매칭 완료하기</button>
-                        </div>
+                <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 6 }}>날짜별 기록</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, overflowY: 'auto', maxHeight: 'calc(100vh - 120px)' }}>
+                    {list.length === 0 && (
+                        <div style={{ color: '#9ca3af', fontSize: 14 }}>아직 기록이 없습니다. 첫 대화를 시작해 보세요.</div>
                     )}
-                    {/* <3-1> 대화 매칭 대기 중 버튼 -끝- */}
+                    {list.map((item) => {
+                        const active = item._id === selected;
+                        return (
+                            <div
+                                key={item._id}
+                                style={{
+                                    padding: '8px 10px',
+                                    borderRadius: 8,
+                                    border: `1px solid ${active ? '#6366f1' : '#e5e7eb'}`,
+                                    background: active ? '#eef2ff' : '#fff',
+                                }}
+                            >
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                                    <button
+                                        onClick={() => { setSelected(item._id); setSelectedDate(item.date); void loadSession(item._id); }}
+                                        style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'transparent', border: 'none', padding: 0, cursor: 'pointer', flex: 1, textAlign: 'left' }}
+                                    >
+                                        <div style={{ width: 10, height: 10, borderRadius: 5, background: item.mood?.color || '#d1d5db' }} />
+                                        <div style={{ fontWeight: 600 }}>{item.date}</div>
+                                    </button>
+                                    <button
+                                        title="이 대화 삭제"
+                                        onClick={() => void deleteSession(item._id)}
+                                        style={{ border: '1px solid #ef4444', background: '#fee2e2', color: '#991b1b', borderRadius: 6, padding: '2px 6px', cursor: 'pointer' }}
+                                    >🗑</button>
+                                </div>
+                                {item.preview && (
+                                    <div style={{ color: '#6b7280', fontSize: 12, marginTop: 4 }}>{item.preview}</div>
+                                )}
+                            </div>
+                        );
+                    })}
                 </div>
-            )}
-            {/* <3> 대화 매칭 대기 중 -끝- */}
-        </>
-    )
+            </aside>
+
+            {/* 우측: 대화 + 배경색 */}
+            <main style={{ padding: 16 }}>
+                <div style={{ ...bgStyle, border: '1px solid #e5e7eb', borderRadius: 12, minHeight: '70vh', padding: 12 }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                                                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                                                      <div style={{ fontSize: 18, fontWeight: 700 }}>{selectedDate}</div>
+                                                    {mood && (
+                                                        <div style={{ fontSize: 12, color: '#374151' }}>감정: {mood.emotion} · 점수: {mood.score}</div>
+                                                    )}
+                                                </div>
+                                                <div style={{ width: 42, height: 42, borderRadius: 21, background: mood?.color || '#e5e7eb', boxShadow: '0 0 12px rgba(0,0,0,0.08)' }} aria-label="감정 색상" />
+                                            </div>
+
+                    <div style={{ border: '1px solid #e5e7eb', borderRadius: 12, height: '55vh', minHeight: 320, padding: 12, overflowY: 'auto', background: 'rgba(255,255,255,0.75)' }}>
+                        {loadingDiary ? (
+                            <div style={{ color: '#6b7280' }}>로딩 중…</div>
+                        ) : (
+                            messages.map(Bubble)
+                        )}
+                        <div ref={bottomRef} />
+                    </div>
+
+                    <form onSubmit={(e) => { e.preventDefault(); void send(); }} style={{ display: 'flex', alignItems: 'flex-end', gap: 8, marginTop: 12 }}>
+                        <textarea
+                            value={input}
+                            onChange={(e) => setInput(e.target.value)}
+                            onKeyDown={onKeyDown}
+                            placeholder="오늘의 생각을 적어보세요. Enter로 전송 (Shift+Enter 줄바꿈)"
+                            rows={2}
+                            style={{ flex: 1, padding: 10, border: '1px solid #e5e7eb', borderRadius: 8, resize: 'vertical', background: '#fff' }}
+                        />
+                        <button type="submit" disabled={sending || !input.trim()} style={{ padding: '10px 14px', borderRadius: 8, border: '1px solid #2563eb', background: sending ? '#93c5fd' : '#2563eb', color: '#fff', cursor: sending ? 'not-allowed' : 'pointer' }}>
+                            {sending ? '전송중…' : '전송'}
+                        </button>
+                    </form>
+                </div>
+            </main>
+        </div>
+    );
 }

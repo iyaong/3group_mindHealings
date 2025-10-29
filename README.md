@@ -41,6 +41,16 @@ curl http://localhost:7780/api/health
 
 If ok: true and db: up, your external MongoDB connection works.
 
+## Diary API (MVP)
+
+- GET /api/diary/list — list recent diaries for the logged-in user. Each item has { _id, date, mood, lastUpdatedAt, preview }.
+- GET /api/diary/:date — fetch or create a diary for a date (YYYY-MM-DD) and return its messages.
+- POST /api/diary/:date/chat { text } — append user's message, get AI reply, detect emotion → color, and persist both.
+
+Notes
+- OPENAI_MODEL can be set in `.env` (default: gpt-4o-mini). For cheaper runs, you may set `gpt-3.5-turbo`.
+- Detected mood colors drive the Diary page background.
+
 ## React Compiler
 
 The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
