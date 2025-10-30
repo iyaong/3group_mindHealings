@@ -2,6 +2,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import AuroraOrb from '../components/AuroraOrb';
+import AuroraAuto from '../components/AuroraAuto';
 
 type DiaryListItem = {
     _id: string;
@@ -45,8 +47,9 @@ export default function Diary() {
     const bgStyle = useMemo(() => {
         const c = mood?.color || '#f4f4f5';
         const overlay = 'rgba(255,255,255,0.65)';
+        // 위는 연하고 아래로 갈수록 진해지는 수직(위→아래) 그라디언트
         return {
-            background: `linear-gradient(135deg, ${c} 0%, ${c} 40%, ${overlay} 100%)`,
+            background: `linear-gradient(to bottom, ${overlay} 10%, ${overlay} 75%, ${c} 100%)`,
         } as React.CSSProperties;
     }, [mood]);
 
@@ -242,7 +245,9 @@ export default function Diary() {
                                         onClick={() => { setSelected(item._id); setSelectedDate(item.date); void loadSession(item._id); }}
                                         style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'transparent', border: 'none', padding: 0, cursor: 'pointer', flex: 1, textAlign: 'left' }}
                                     >
-                                        <div style={{ width: 10, height: 10, borderRadius: 5, background: item.mood?.color || '#d1d5db' }} />
+                                        <div style={{ width: 16, height: 16, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                            <AuroraOrb color={item.mood?.color || '#bdbdbd'} size={16} className="no-anim" />
+                                        </div>
                                         <div style={{ fontWeight: 600 }}>{item.date}</div>
                                     </button>
                                     <button
@@ -262,18 +267,20 @@ export default function Diary() {
 
             {/* 우측: 대화 + 배경색 */}
             <main style={{ padding: 16 }}>
-                <div style={{ ...bgStyle, border: '1px solid #e5e7eb', borderRadius: 12, minHeight: '70vh', padding: 12 }}>
-                                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-                                                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                                                      <div style={{ fontSize: 18, fontWeight: 700 }}>{selectedDate}</div>
-                                                    {mood && (
-                                                        <div style={{ fontSize: 12, color: '#374151' }}>감정: {mood.emotion} · 점수: {mood.score}</div>
-                                                    )}
-                                                </div>
-                                                <div style={{ width: 42, height: 42, borderRadius: 21, background: mood?.color || '#e5e7eb', boxShadow: '0 0 12px rgba(0,0,0,0.08)' }} aria-label="감정 색상" />
-                                            </div>
+                <div style={{ ...bgStyle, border: '1px solid #e5e7eb', borderRadius: 12, minHeight: '70vh', padding: 12, position: 'relative' }}>
+                    {/* 오로라: 채팅창 왼쪽 상단 고정, 크게 (WebGL 우선, 실패/지연 시 CSS 폴백) */}
+                    <div className="aurora-breathe" style={{ position: 'absolute', top: -2, left: -8, zIndex: 1, pointerEvents: 'none', width: 200, height: 200, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <AuroraAuto color={mood?.color || '#a3a3a3'} size={150} />
+                    </div>
+                    {/* 날짜/감정: 오른쪽 상단 정렬, 점수 제거 */}
+                    <div style={{ position: 'absolute', top: 12, right: 12, textAlign: 'right' }}>
+                        <div style={{ fontSize: 18, fontWeight: 700 }}>{selectedDate}</div>
+                        {mood?.emotion && (
+                            <div style={{ fontSize: 12, color: '#374151' }}>감정: {mood.emotion}</div>
+                        )}
+                    </div>
 
-                    <div style={{ border: '1px solid #e5e7eb', borderRadius: 12, height: '55vh', minHeight: 320, padding: 12, overflowY: 'auto', background: 'rgba(255,255,255,0.75)' }}>
+                    <div style={{ border: '1px solid #e5e7eb', borderRadius: 12, height: '55vh', minHeight: 320, padding: 12, overflowY: 'auto', background: 'rgba(255,255,255,0.75)', width: 'min(100%, 1200px)', margin: '96px auto 0' }}>
                         {loadingDiary ? (
                             <div style={{ color: '#6b7280' }}>로딩 중…</div>
                         ) : (

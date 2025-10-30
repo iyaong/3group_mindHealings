@@ -10,6 +10,9 @@ export default function Navigation() {
     // navigate: 페이지를 이동할 때 사용
     const navigate = useNavigate();
     const { user, loading, refresh, logout } = useAuth();
+    const onLogout = async () => {
+        try { await logout(); } finally { navigate('/'); }
+    };
 
     useEffect(() => {
         const onAuthChanged = () => refresh();
@@ -83,10 +86,10 @@ export default function Navigation() {
 
             {loading ? (
                 <span>상태 확인 중...</span>
-            ) : user ? (
+        ) : user ? (
                 <>
                     <span style={{ color: "#2c7" }}>{user.email}</span>
-                    <button onClick={() => { logout(); }}>로그아웃</button>
+            <button onClick={onLogout}>로그아웃</button>
                 </>
             ) : (
                 <>

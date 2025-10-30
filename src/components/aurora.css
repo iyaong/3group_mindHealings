@@ -1,0 +1,94 @@
+/* Wrapper: handles scale/pulse and outer glow ring */
+.aurora-orb-wrap {
+  position: relative;
+  display: inline-block;
+  /* Larger, more lively pulse by default; customizable via --pulse-min/--pulse-max */
+  --pulse-min: 0.94;
+  --pulse-max: 1.08;
+  animation: aurora-pulse 7s ease-in-out infinite alternate;
+  transform-origin: center;
+}
+.aurora-orb-wrap::after {
+  content: '';
+  position: absolute; inset: -6px;
+  border-radius: 50%; pointer-events: none;
+  /* Edge glow near the rim */
+  background: radial-gradient(closest-side,
+    transparent 72%,
+    color-mix(in oklab, var(--c1, #ff6ad5), white 25%) 95%,
+    transparent 100%);
+  filter: blur(12px);
+  opacity: 0.7;
+  mix-blend-mode: screen;
+}
+
+/* aurora.css - CSS gradient based aurora orb */
+.aurora-orb {
+  width: var(--size, 240px);
+  height: var(--size, 240px);
+  border-radius: 50%;
+  position: relative;
+  overflow: hidden;
+  background:
+    radial-gradient(60% 60% at 50% 50%, rgba(255,255,255,0.28), rgba(255,255,255,0) 60%),
+    conic-gradient(from 0deg,
+      var(--c1, #ff6ad5),
+      var(--c2, #845ec2),
+      var(--c3, #00c2a8),
+      var(--c1, #ff6ad5));
+  animation: aurora-spin 28s linear infinite, aurora-hue 18s ease-in-out infinite alternate;
+  filter: saturate(115%) contrast(105%);
+  box-shadow:
+    0 60px 140px -40px rgba(130,60,255,0.35),
+    inset 0 0 80px rgba(255,255,255,0.18);
+  will-change: transform, filter;
+}
+.aurora-orb::before {
+  content: '';
+  position: absolute; inset: -20%;
+  border-radius: 50%;
+  background:
+    conic-gradient(from 120deg,
+      color-mix(in oklab, var(--c1), transparent 60%),
+      color-mix(in oklab, var(--c2), transparent 60%),
+      color-mix(in oklab, var(--c3), transparent 60%),
+      color-mix(in oklab, var(--c1), transparent 60%));
+  filter: blur(30px);
+  mix-blend-mode: screen;
+  animation: aurora-spin 40s linear infinite reverse;
+}
+.aurora-orb__overlay {
+  position: absolute; inset: 0; border-radius: 50%; opacity: 0; transition: opacity .6s ease;
+  background:
+    radial-gradient(60% 60% at 50% 50%, rgba(255,255,255,0.28), rgba(255,255,255,0) 60%),
+    conic-gradient(from 0deg,
+      var(--c1, #ff6ad5),
+      var(--c2, #845ec2),
+      var(--c3, #00c2a8),
+      var(--c1, #ff6ad5));
+  animation: aurora-spin 28s linear infinite, aurora-hue 18s ease-in-out infinite alternate;
+}
+.aurora-orb__overlay.show { opacity: 1; }
+
+@keyframes aurora-spin { to { transform: rotate(360deg); } }
+@keyframes aurora-hue { 0%{ filter:hue-rotate(0deg);} 100%{ filter:hue-rotate(30deg);} }
+@keyframes aurora-pulse { 0%{ transform: scale(var(--pulse-min, 0.985));} 100%{ transform: scale(var(--pulse-max, 1.02));} }
+
+/* Breathe: scale the whole orb wrapper smoothly */
+.aurora-breathe { animation: aurora-breathe 7s ease-in-out infinite alternate; transform-origin: 50% 50%; }
+@keyframes aurora-breathe { 0% { transform: scale(0.96);} 100% { transform: scale(1.08);} }
+
+/* Optional: disable animations when needed */
+.aurora-orb-wrap.no-anim { animation: none !important; }
+.aurora-orb-wrap.no-anim .aurora-orb,
+.aurora-orb-wrap.no-anim .aurora-orb::before,
+.aurora-orb-wrap.no-anim .aurora-orb .aurora-orb__overlay { animation: none !important; }
+
+/* Respect user reduced motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  .aurora-orb-wrap,
+  .aurora-orb,
+  .aurora-orb::before,
+  .aurora-orb .aurora-orb__overlay,
+  .aurora-breathe { animation: none !important; }
+}
