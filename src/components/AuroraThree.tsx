@@ -65,6 +65,9 @@ const FRAGMENT = /* glsl */`
   precision highp float;
   varying vec2 vUv;
   uniform float u_time;
+  uniform float u_waveAmp;
+  uniform float u_waveFreq;
+  uniform float u_waveSpeed;
   uniform vec2 u_resolution;
   uniform vec3 u_c1;
   uniform vec3 u_c2;
@@ -108,7 +111,15 @@ const FRAGMENT = /* glsl */`
     uv *= 0.96; // small inset to avoid edge clipping
 
     float r = length(uv);
-    if (r > 1.0) discard; // circular mask
+  float backScale = 1.36;
+
+  // Wavy / ragged rim: perturb outer radius by angle-based waves + small noise
+  float angle = atan(uv.y, uv.x);
+  float wave = sin(angle * u_waveFreq + t * u_waveSpeed) * u_waveAmp;
+  float nWave = (noise(uv * 6.0 + vec2(t * 0.12)) - 0.5) * u_waveAmp * 0.8;
+  float r2 = r + wave + nWave * smoothstep(0.6, 1.2, r);
+  // use r2 for rim/halo computations; clip by r (conservative) so interior rendering unaffected
+  if (r > backScale) discard; // allow rendering out to backScale for halo
 
     // Base vertical gradient blend (no angle-based seams)
     float v = smoothstep(-0.9, 0.9, uv.y);
@@ -126,7 +137,7 @@ const FRAGMENT = /* glsl */`
     float g3 = gauss(length(p3), 8.0);
 
     vec3 col = base;
-    col += vec3(1.0) * g1 * 0.12;        // soften white core
+  col += vec3(1.0) * g1 * 0.05;        // soften white core (slightly reduced)
     col += u_c2 * g2 * 0.38;             // reduce tinted lobe
     col += u_c3 * g3 * 0.32;             // reduce secondary tint
 
@@ -151,7 +162,26 @@ const FRAGMENT = /* glsl */`
   col = mix(vec3(luma), col, 1.22);
   col = pow(max(col, 0.0), vec3(0.96));
 
-    gl_FragColor = vec4(col, 1.0);
+  // --- noisy halo (soft border) ---
+  // inner rim presence (narrower to emphasize ring) - use perturbed radius for organic edge
+  float innerEdge = smoothstep(0.92, 0.995, r2);
+  // outer falloff from rim to backScale
+  float outerEdge = 1.0 - smoothstep(1.0, backScale, r2);
+  // layered noise for organic edge
+  float hn1 = noise(uv * 4.2 + vec2(t * 0.06));
+  float hn2 = noise(uv * 11.0 + vec2(t * 0.03));
+  float hNoise = mix(hn1, hn2, 0.45);
+  // emphasize inner rim with power and stronger noise influence
+  float haloMask = pow(innerEdge, 2.5) * outerEdge * (0.6 + 0.6 * hNoise);
+  vec3 haloColor = (u_c1 + u_c2 + u_c3) / 3.0;
+  haloColor *= mix(0.92, 1.08, hNoise);
+
+  // combine main orb and halo
+  float mainAlpha = 1.0 - innerEdge * 0.18; // slightly stronger rim fade
+  float haloAlpha = clamp(haloMask * 1.6, 0.0, 1.0);
+  vec3 finalCol = col * mainAlpha + haloColor * haloAlpha;
+  float finalA = clamp(mainAlpha + haloAlpha * 0.6, 0.0, 1.0);
+  gl_FragColor = vec4(finalCol, finalA);
   }
 `;
 
@@ -225,6 +255,89 @@ export default function AuroraThree({
     meshRef.current = mesh;
     scene.add(mesh);
 
+  // --- Post-processing setup: render target, blur passes, composite ---
+  const rtScene = new THREE.WebGLRenderTarget(size, size, { minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, format: THREE.RGBAFormat });
+  const rtPing = rtScene.clone();
+  const rtPong = rtScene.clone();
+
+  const postScene = new THREE.Scene();
+  const postCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+  const fsGeo = new THREE.PlaneGeometry(2, 2);
+
+    const POST_VERTEX = /* glsl */ `
+      varying vec2 vUv;
+      void main(){ vUv = uv; gl_Position = vec4(position, 1.0); }
+    `;
+
+    const BLUR_FRAGMENT = /* glsl */ `
+      precision highp float;
+      varying vec2 vUv;
+      uniform sampler2D tDiffuse;
+      uniform vec2 u_resolution;
+      uniform vec2 u_dir;
+
+      void main(){
+        vec2 texel = 1.0 / u_resolution;
+        vec3 result = vec3(0.0);
+        float w0 = 0.2270270270;
+        float w1 = 0.3162162162;
+        float w2 = 0.0702702703;
+        result += texture2D(tDiffuse, vUv).rgb * w0;
+        result += texture2D(tDiffuse, vUv + texel * u_dir * 1.3846153846).rgb * w1;
+        result += texture2D(tDiffuse, vUv - texel * u_dir * 1.3846153846).rgb * w1;
+        result += texture2D(tDiffuse, vUv + texel * u_dir * 3.2307692308).rgb * w2;
+        result += texture2D(tDiffuse, vUv - texel * u_dir * 3.2307692308).rgb * w2;
+        gl_FragColor = vec4(result, 1.0);
+      }
+    `;
+
+    const COMPOSITE_FRAGMENT = /* glsl */ `
+      precision highp float;
+      varying vec2 vUv;
+      uniform sampler2D tBase;
+      uniform sampler2D tBlur;
+      uniform float u_bloomIntensity;
+      void main(){
+        vec3 base = texture2D(tBase, vUv).rgb;
+        vec3 blur = texture2D(tBlur, vUv).rgb;
+        vec3 col = base + blur * u_bloomIntensity; // additive bloom
+        gl_FragColor = vec4(col, 1.0);
+      }
+    `;
+
+    const blurMaterialH = new THREE.ShaderMaterial({
+      uniforms: {
+        tDiffuse: { value: null },
+        u_resolution: { value: new THREE.Vector2(size, size) },
+        u_dir: { value: new THREE.Vector2(1.0, 0.0) },
+      },
+      vertexShader: POST_VERTEX,
+      fragmentShader: BLUR_FRAGMENT,
+      depthTest: false,
+      depthWrite: false,
+    });
+  const blurMaterialV = blurMaterialH.clone();
+  blurMaterialV.uniforms = THREE.UniformsUtils.clone(blurMaterialH.uniforms);
+  blurMaterialV.uniforms.u_dir.value = new THREE.Vector2(0.0, 1.0);
+
+    const compositeMaterial = new THREE.ShaderMaterial({
+      uniforms: {
+        tBase: { value: null },
+        tBlur: { value: null },
+        u_bloomIntensity: { value: 0.4 },
+      },
+      vertexShader: POST_VERTEX,
+      fragmentShader: COMPOSITE_FRAGMENT,
+      depthTest: false,
+      depthWrite: false,
+    });
+
+  const quad = new THREE.Mesh(fsGeo, blurMaterialH);
+  postScene.add(quad);
+  const compositeScene = new THREE.Scene();
+  const compositeQuad = new THREE.Mesh(fsGeo, compositeMaterial);
+  compositeScene.add(compositeQuad);
+
     container.appendChild(renderer.domElement);
     renderer.domElement.style.width = '100%';
     renderer.domElement.style.height = '100%';
@@ -251,7 +364,26 @@ export default function AuroraThree({
       if (shouldAnimate) {
         uniforms.u_time.value = t;
       }
+
+      // 1) render scene to rtScene
+      renderer.setRenderTarget(rtScene);
       renderer.render(scene, camera);
+
+  // 2) horizontal blur -> rtPing
+  blurMaterialH.uniforms.tDiffuse.value = rtScene.texture;
+  renderer.setRenderTarget(rtPing);
+  renderer.render(postScene, postCamera);
+
+  // 3) vertical blur -> rtPong
+  blurMaterialV.uniforms.tDiffuse.value = rtPing.texture;
+  renderer.setRenderTarget(rtPong);
+  renderer.render(postScene, postCamera);
+
+  // 4) composite base + blur to screen
+  compositeMaterial.uniforms.tBase.value = rtScene.texture;
+  compositeMaterial.uniforms.tBlur.value = rtPong.texture;
+      renderer.setRenderTarget(null);
+      renderer.render(compositeScene, postCamera);
     };
 
     const renderOnce = () => {
@@ -282,8 +414,15 @@ export default function AuroraThree({
       renderer.domElement.removeEventListener('webglcontextlost', handleContextLost);
       renderer.domElement.removeEventListener('webglcontextrestored', handleContextRestored);
       geometry.dispose();
-  (material as THREE.ShaderMaterial).dispose();
-  if (mesh.parent) mesh.parent.remove(mesh);
+      (material as THREE.ShaderMaterial).dispose();
+      blurMaterialH.dispose();
+      blurMaterialV.dispose();
+      compositeMaterial.dispose();
+      fsGeo.dispose();
+      rtScene.dispose();
+      rtPing.dispose();
+      rtPong.dispose();
+      if (mesh.parent) mesh.parent.remove(mesh);
       renderer.dispose();
       if (container.contains(renderer.domElement)) container.removeChild(renderer.domElement);
     };

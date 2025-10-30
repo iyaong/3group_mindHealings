@@ -394,13 +394,107 @@ async function getOrCreateDiary(db: any, userId: string, dateKey: string): Promi
   return { ...doc, _id: r.insertedId };
 }
 
+// Canonical emotion categories used throughout learning/personalization
+const CANONICAL_EMOTIONS = ['joy', 'sad', 'anger', 'fear', 'anxious', 'neutral'] as const;
+type CanonicalEmotion = typeof CANONICAL_EMOTIONS[number];
+
+// Map Korean variants and composite labels to canonical keys for consistent storage
+function normalizeEmotionKey(raw: string): CanonicalEmotion {
+  const k = String(raw || '').trim().toLowerCase();
+  if (!k) return 'neutral';
+  // direct hits
+  if (CANONICAL_EMOTIONS.includes(k as CanonicalEmotion)) return k as CanonicalEmotion;
+  // remove spaces
+  const s = k.replace(/\s+/g, '');
+  // synonyms
+  const map: Record<string, CanonicalEmotion> = {
+    // joy
+    '기쁨': 'joy', '행복': 'joy', '사랑': 'joy', '사랑/애정': 'joy', '애정': 'joy', '희망': 'joy', '희망/기대': 'joy', '기대': 'joy', '놀람': 'joy', '놀람/경이': 'joy', '경이': 'joy', '감동': 'joy', '감동/존경': 'joy', '존경': 'joy', '흥분': 'joy', '흥분/열정': 'joy', '열정': 'joy',
+    // sad
+    '슬픔': 'sad', '우울': 'sad', '슬픔/우울': 'sad', '무기력': 'sad', '무기력/피로': 'sad', '피로': 'sad',
+    // anger
+    '분노': 'anger', '화': 'anger', '분노/화': 'anger', '짜증': 'anger', '경멸': 'anger', '질투': 'anger',
+    // fear
+    '두려움': 'fear', '공포': 'fear',
+    // anxious
+    '불안': 'anxious', '걱정': 'anxious', '불안/걱정': 'anxious',
+    // neutral
+    '중립': 'neutral', '무감정': 'neutral', '지루함': 'neutral', '안도': 'neutral', '안도/안심': 'neutral', '안심': 'neutral', '평온': 'neutral', '평온/안도': 'neutral', '신뢰': 'neutral', '신뢰/안정': 'neutral', '안정': 'neutral',
+  };
+  // try exact then strip slashes
+  if (map[k]) return map[k];
+  if (map[s]) return map[s];
+  const noSlash = k.replace(/[\/]/g, '');
+  if (map[noSlash]) return map[noSlash];
+  return 'neutral';
+}
+
+// Base palette used by emotion detection (and as fallbacks)
+// const BASE_EMOTION_COLORS: Record<string, string> = {
+//   // English keys (used by detector)
+//   joy: '#FFD166',        // warm yellow
+//   sad: '#118AB2',        // deep blue
+//   anger: '#EF476F',      // vibrant red-rose
+//   fear: '#073B4C',       // midnight teal
+//   anxious: '#06D6A0',    // minty green
+//   neutral: '#A8A8A8',    // mid gray
+//
+//   // Common Korean synonyms mapped to the same hues
+//   '기쁨': '#FFD166',
+//   '행복': '#FFD166',
+//   '슬픔': '#118AB2',
+//   '우울': '#118AB2',
+//   '분노': '#EF476F',
+//   '짜증': '#EF476F',
+//   '두려움': '#073B4C',
+//   '공포': '#073B4C',
+//   '불안': '#06D6A0',
+//   '걱정': '#06D6A0',
+//   '중립': '#A8A8A8',
+//   '무감정': '#A8A8A8',
+// };
+
+// Optional: allow extending the palette from a JSON file without code changes.
+// Place a file at server/emotion_colors.json or emotion_colors.json with the shape:
+// { "감정": "#RRGGBB", "hope": "#RRGGBB", ... }
+function loadUserEmotionColors(): Record<string, string> {
+  const candidates = [
+    path.resolve(process.cwd(), 'server/emotion_colors.json'),
+    path.resolve(process.cwd(), 'emotion_colors.json'),
+  ];
+  for (const p of candidates) {
+    try {
+      if (fs.existsSync(p)) {
+        const raw = fs.readFileSync(p, 'utf-8');
+        const obj = JSON.parse(raw);
+        const out: Record<string, string> = {};
+        for (const [k, v] of Object.entries(obj || {})) {
+          if (!k || typeof k !== 'string') continue;
+          if (typeof v === 'string') {
+            const hex = v.startsWith('#') ? v : `#${v}`;
+            if (/^#[0-9a-fA-F]{6}$/.test(hex)) {
+              const HEX = hex.toUpperCase();
+              // 1) 원본 키도 보관 (디버그/미사용 키 조회용)
+              out[k] = HEX;
+              // 2) 표준 감정 키로 정규화한 항목을 생성하여 기본 팔레트를 덮어씌움
+              const canon = normalizeEmotionKey(k);
+              out[canon] = HEX;
+            }
+          }
+        }
+        return out;
+      }
+    } catch {
+      // ignore parse errors and try next location
+    }
+  }
+  return {};
+}
+
+// Final palette: base + user-extended (user entries override base on key collision)
 const EMOTION_COLORS: Record<string, string> = {
-  joy: '#FFD166',
-  sad: '#118AB2',
-  anger: '#EF476F',
-  fear: '#073B4C',
-  anxious: '#06D6A0',
-  neutral: '#A8A8A8',
+  // ...BASE_EMOTION_COLORS,
+  ...loadUserEmotionColors(),
 };
 
 // Convert hex <-> HSL helpers (lightweight, for palette blending)
@@ -422,8 +516,9 @@ function mixHex(a:string,b:string,w:number){
 // Compute a personalized color for an emotion using recent accepted/corrected feedback
 async function personalizedColorForEmotion(db: any, userId: string, baseColor: string, emotion: string){
   try{
+    const canonical = normalizeEmotionKey(emotion);
     const fb = await db.collection('emotion_color_feedback')
-      .find({ userId, emotion })
+      .find({ userId, emotion: canonical })
       .sort({ createdAt: -1 })
       .limit(10)
       .toArray();
@@ -480,12 +575,12 @@ app.post('/api/feedback/color', authMiddleware, async (req: any, res) => {
     const db = client.db(DB_NAME);
     const userId = req.user.sub;
     const body = req.body || {};
-    const emotion = String(body.emotion||'').toLowerCase();
+  const emotion = normalizeEmotionKey(String(body.emotion||''));
     const colorHex = String(body.colorHex||'').trim();
     const accepted = Boolean(body.accepted);
     const correctedColorHex = body.correctedColorHex ? String(body.correctedColorHex).trim() : null;
     if(!emotion || !/^#?[0-9a-fA-F]{6}$/.test(colorHex.replace('#',''))) return res.status(400).json({ ok:false, message:'입력값 오류' });
-    const doc = { userId, emotion, colorHex: colorHex.startsWith('#')?colorHex:`#${colorHex}`, accepted, correctedColorHex: correctedColorHex? (correctedColorHex.startsWith('#')?correctedColorHex:`#${correctedColorHex}`) : null, createdAt: new Date() };
+  const doc = { userId, emotion, colorHex: colorHex.startsWith('#')?colorHex:`#${colorHex}`, accepted, correctedColorHex: correctedColorHex? (correctedColorHex.startsWith('#')?correctedColorHex:`#${correctedColorHex}`) : null, createdAt: new Date() };
     await db.collection('emotion_color_feedback').insertOne(doc);
     res.status(201).json({ ok:true });
   }catch(e){ res.status(500).json({ ok:false, message:'피드백 저장 오류' }); }
@@ -497,7 +592,7 @@ app.get('/api/mood/palette', authMiddleware, async (req:any,res)=>{
     const client = await getClient();
     const db = client.db(DB_NAME);
     const userId = req.user.sub;
-    const emotions = Object.keys(EMOTION_COLORS);
+  const emotions = [...CANONICAL_EMOTIONS];
     const items = [] as any[];
     for(const emo of emotions){
       const base = EMOTION_COLORS[emo];

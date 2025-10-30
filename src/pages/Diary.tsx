@@ -37,6 +37,8 @@ export default function Diary() {
     const [input, setInput] = useState('');
     const [sending, setSending] = useState(false);
     const [loadingDiary, setLoadingDiary] = useState(false);
+    const [showFeedback, setShowFeedback] = useState(false);
+    const [correctedColor, setCorrectedColor] = useState<string>('');
     const bottomRef = useRef<HTMLDivElement | null>(null);
 
     useEffect(() => {
@@ -134,6 +136,7 @@ export default function Diary() {
             const data = await res.json();
             setMessages((prev) => [...prev.slice(0, -1), { role: 'assistant', content: data?.assistant?.content || '' }]);
             setMood(data?.mood ?? null);
+            setShowFeedback(false);
             await refreshList();
         } catch {
             setMessages((prev) => [...prev.slice(0, -1), { role: 'assistant', content: '네트워크 오류가 발생했습니다.' }]);
@@ -279,6 +282,29 @@ export default function Diary() {
                             <div style={{ fontSize: 12, color: '#374151' }}>감정: {mood.emotion}</div>
                         )}
                     </div>
+
+                    {/* Feedback banner: ask user if the color matches their mood */}
+                    {mood && (
+                        <div style={{ position: 'absolute', top: 56, right: 12, zIndex: 2, background: 'rgba(255,255,255,0.9)', border: '1px solid #e5e7eb', borderRadius: 10, padding: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <span style={{ fontSize: 12, color: '#374151' }}>이 색이 지금 감정에 어울리나요?</span>
+                            <button
+                                onClick={async () => {
+                                    try {
+                                        await fetch('/api/feedback/color', { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify({ emotion: mood?.emotion, colorHex: mood?.color, accepted: true }) });
+                                        setShowFeedback(false);
+                                    } catch {}
+                                }}
+                                style={{ fontSize: 12, padding: '4px 8px', borderRadius: 6, border: '1px solid #10b981', background: '#ecfdf5', color: '#065f46', cursor: 'pointer' }}
+                            >네</button>
+                            <button onClick={() => { setShowFeedback(v => !v); setCorrectedColor(mood?.color || '#999999'); }} style={{ fontSize: 12, padding: '4px 8px', borderRadius: 6, border: '1px solid #f59e0b', background: '#fffbeb', color: '#92400e', cursor: 'pointer' }}>아니요</button>
+                            {showFeedback && (
+                                <form onSubmit={async (e) => { e.preventDefault(); try { await fetch('/api/feedback/color', { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify({ emotion: mood?.emotion, colorHex: mood?.color, accepted: false, correctedColorHex: correctedColor }) }); setShowFeedback(false); setMood((prev)=> prev ? { ...prev, color: correctedColor } : prev); } catch {} }} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                    <input type="color" aria-label="색 수정" value={correctedColor || '#999999'} onChange={(e) => setCorrectedColor(e.target.value)} style={{ width: 28, height: 22, padding: 0, border: '1px solid #e5e7eb', borderRadius: 4 }} />
+                                    <button type="submit" style={{ fontSize: 12, padding: '4px 8px', borderRadius: 6, border: '1px solid #2563eb', background: '#eff6ff', color: '#1e3a8a', cursor: 'pointer' }}>저장</button>
+                                </form>
+                            )}
+                        </div>
+                    )}
 
                     <div style={{ border: '1px solid #e5e7eb', borderRadius: 12, height: '55vh', minHeight: 320, padding: 12, overflowY: 'auto', background: 'rgba(255,255,255,0.75)', width: 'min(100%, 1200px)', margin: '96px auto 0' }}>
                         {loadingDiary ? (
