@@ -128,6 +128,8 @@ async function ensureIndexes() {
   await db.collection('diary_session_messages').createIndex({ sessionId: 1, createdAt: 1 }, { name: 'by_session_time' });
   // 온라인 채팅 메시지 인덱스
   await db.collection('online_messages').createIndex({ createdAt: 1 }, { name: 'online_by_time' });
+  // feedback indices
+  await db.collection('emotion_color_feedback').createIndex({ userId: 1, emotion: 1, createdAt: -1 }, { name: 'by_user_emotion_time' });
   } catch (e) {
     console.warn('Index creation skipped:', (e as Error).message);
   }
@@ -401,6 +403,47 @@ const EMOTION_COLORS: Record<string, string> = {
   neutral: '#A8A8A8',
 };
 
+// Convert hex <-> HSL helpers (lightweight, for palette blending)
+function hexToRgb01(hex: string){
+  let c = hex.replace('#','');
+  if(c.length===3) c=c.split('').map(x=>x+x).join('');
+  const r=parseInt(c.slice(0,2),16)/255, g=parseInt(c.slice(2,4),16)/255, b=parseInt(c.slice(4,6),16)/255;
+  return {r,g,b};
+}
+function rgb01ToHex(r:number,g:number,b:number){
+  const to=(v:number)=>Math.round(Math.max(0,Math.min(1,v))*255).toString(16).padStart(2,'0');
+  return `#${to(r)}${to(g)}${to(b)}`;
+}
+function mixHex(a:string,b:string,w:number){
+  const A=hexToRgb01(a), B=hexToRgb01(b);
+  return rgb01ToHex(A.r*(1-w)+B.r*w, A.g*(1-w)+B.g*w, A.b*(1-w)+B.b*w);
+}
+
+// Compute a personalized color for an emotion using recent accepted/corrected feedback
+async function personalizedColorForEmotion(db: any, userId: string, baseColor: string, emotion: string){
+  try{
+    const fb = await db.collection('emotion_color_feedback')
+      .find({ userId, emotion })
+      .sort({ createdAt: -1 })
+      .limit(10)
+      .toArray();
+    if (!fb.length) return baseColor;
+    // Weight accepted correctedColor > accepted original > rejected corrected
+    let accR=0, accG=0, accB=0, W=0;
+    for(const f of fb){
+      const hex = (f.accepted ? (f.correctedColorHex || f.colorHex) : (f.correctedColorHex || null)) || null;
+      if(!hex) continue;
+      const {r,g,b}=hexToRgb01(hex);
+      const w = f.accepted ? 1.0 : 0.4;
+      accR += r*w; accG += g*w; accB += b*w; W += w;
+    }
+    if(W<=0) return baseColor;
+    const avg = rgb01ToHex(accR/W, accG/W, accB/W);
+    // Blend 60% toward personal average
+    return mixHex(baseColor, avg, 0.6);
+  }catch{ return baseColor; }
+}
+
 async function detectEmotionFromText(text: string): Promise<{ emotion: string; score: number; color: string }> {
   // 간단 분류 프롬프트 (JSON 반환 기대)
   const openai = new OpenAI({ apiKey: OPENAI_API_KEY });
@@ -428,6 +471,42 @@ async function detectEmotionFromText(text: string): Promise<{ emotion: string; s
     return { emotion: 'neutral', score: 0, color: EMOTION_COLORS.neutral };
   }
 }
+
+// -------- Feedback endpoints --------
+// POST /api/feedback/color { text, emotion, colorHex, accepted, correctedColorHex? }
+app.post('/api/feedback/color', authMiddleware, async (req: any, res) => {
+  try{
+    const client = await getClient();
+    const db = client.db(DB_NAME);
+    const userId = req.user.sub;
+    const body = req.body || {};
+    const emotion = String(body.emotion||'').toLowerCase();
+    const colorHex = String(body.colorHex||'').trim();
+    const accepted = Boolean(body.accepted);
+    const correctedColorHex = body.correctedColorHex ? String(body.correctedColorHex).trim() : null;
+    if(!emotion || !/^#?[0-9a-fA-F]{6}$/.test(colorHex.replace('#',''))) return res.status(400).json({ ok:false, message:'입력값 오류' });
+    const doc = { userId, emotion, colorHex: colorHex.startsWith('#')?colorHex:`#${colorHex}`, accepted, correctedColorHex: correctedColorHex? (correctedColorHex.startsWith('#')?correctedColorHex:`#${correctedColorHex}`) : null, createdAt: new Date() };
+    await db.collection('emotion_color_feedback').insertOne(doc);
+    res.status(201).json({ ok:true });
+  }catch(e){ res.status(500).json({ ok:false, message:'피드백 저장 오류' }); }
+});
+
+// GET /api/mood/palette -> 최근 개인 팔레트 프리뷰
+app.get('/api/mood/palette', authMiddleware, async (req:any,res)=>{
+  try{
+    const client = await getClient();
+    const db = client.db(DB_NAME);
+    const userId = req.user.sub;
+    const emotions = Object.keys(EMOTION_COLORS);
+    const items = [] as any[];
+    for(const emo of emotions){
+      const base = EMOTION_COLORS[emo];
+      const personalized = await personalizedColorForEmotion(db, userId, base, emo);
+      items.push({ emotion: emo, base, personalized });
+    }
+    res.json({ ok:true, items });
+  }catch{ res.status(500).json({ ok:false, message:'팔레트 조회 오류' }); }
+});
 
 // GET /api/diary/list -> 최근 순 목록
 app.get('/api/diary/list', authMiddleware, async (req: any, res) => {
@@ -533,12 +612,14 @@ app.post('/api/diary/:date(\\d{4}-\\d{2}-\\d{2})/chat', authMiddleware, async (r
 
     // 5) 감정/색 감지 (최신 사용자 메시지 기반)
     const mood = await detectEmotionFromText(text);
+    const personalizedColor = await personalizedColorForEmotion(db, userId, mood.color, mood.emotion);
+    const finalMood = { ...mood, color: personalizedColor };
     await db.collection('diaries').updateOne(
       { _id: diary._id },
-      { $set: { mood, lastUpdatedAt: new Date() } }
+      { $set: { mood: finalMood, lastUpdatedAt: new Date() } }
     );
 
-    res.status(201).json({ ok: true, user: userDoc, assistant: asstDoc, mood });
+    res.status(201).json({ ok: true, user: userDoc, assistant: asstDoc, mood: finalMood });
   } catch (e) {
     console.error('diary chat error:', (e as Error).message);
     res.status(500).json({ message: '다이어리 채팅 처리 오류' });
@@ -648,9 +729,11 @@ app.post('/api/diary/session/:id/chat', authMiddleware, async (req: any, res) =>
   const completion = await chatCompletionWithFallback(openai, messages);
     const reply = completion.choices?.[0]?.message?.content || '';
     await db.collection('diary_session_messages').insertOne({ sessionId: session._id, userId, role: 'assistant', content: reply, createdAt: new Date() });
-    const mood = await detectEmotionFromText(text);
-    await db.collection('diary_sessions').updateOne({ _id: session._id }, { $set: { mood, lastUpdatedAt: new Date() } });
-    res.status(201).json({ ok: true, assistant: { content: reply }, mood });
+  const mood = await detectEmotionFromText(text);
+  const personalizedColor = await personalizedColorForEmotion(db, userId, mood.color, mood.emotion);
+  const finalMood = { ...mood, color: personalizedColor };
+  await db.collection('diary_sessions').updateOne({ _id: session._id }, { $set: { mood: finalMood, lastUpdatedAt: new Date() } });
+  res.status(201).json({ ok: true, assistant: { content: reply }, mood: finalMood });
   } catch (e: any) {
     console.error('session chat error:', e?.message || e);
     res.status(500).json({ message: '세션 채팅 처리 오류' });
