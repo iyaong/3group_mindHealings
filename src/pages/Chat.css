@@ -1,3 +1,7 @@
-body {
-    transition: background-color 5s;
+/* transition은 Chat 페이지에서만 적용되도록 data 속성으로 범위를 좁힙니다.
+   이렇게 하면 Chat에서 색을 바꿀 때는 부드럽게 변화하지만,
+   다른 페이지로 이동 시 data 속성을 제거하면 트랜지션 규칙이 사라져
+   배경이 즉시 초기화됩니다. */
+body[data-chat-bg] {
+    transition: background-color 0.6s ease;
 }

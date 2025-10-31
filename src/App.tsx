@@ -1,4 +1,5 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import './App.css';
 import Navigation from './pages/Navigation';
 import Home from './pages/Home';
 import Diary from './pages/Diary';
@@ -6,6 +7,7 @@ import Chat from './pages/Chat';
 import Online from './pages/Online';
 import Login from './pages/Login';
 import Register from './pages/Register';
+
 
 export default function App() {
   return (

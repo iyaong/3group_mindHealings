@@ -1,7 +1,7 @@
 // Navigation.tsx
 // 상단에 고정되어 있는 메뉴창입니다.
 
-import { useNavigate, NavLink } from "react-router-dom";
+import { useNavigate, NavLink, useLocation } from "react-router-dom";
 import { useEffect } from "react";
 import { useAuth } from "../hooks/useAuth";
 
@@ -19,6 +19,21 @@ export default function Navigation() {
         window.addEventListener('auth:changed', onAuthChanged);
         return () => window.removeEventListener('auth:changed', onAuthChanged);
     }, [refresh]);
+
+    // 라우트 변경을 감지하여 /chat 이외의 경로에서는 body 배경과 chat 표시자를 초기화합니다.
+    const location = useLocation();
+    useEffect(() => {
+        try {
+            if (!location.pathname.startsWith('/chat')) {
+                // Chat 전용 표시자 제거
+                if (document.body.dataset.chatBg) delete document.body.dataset.chatBg;
+                // 인라인으로 변경된 배경 초기화(전역 CSS에서 흰색이 보장됨)
+                document.body.style.backgroundColor = '';
+            }
+        } catch {
+            // DOM 접근 실패 시 무시
+        }
+    }, [location.pathname]);
 
     // login: 로그인 버튼
     const login = () => {
@@ -43,7 +58,7 @@ export default function Navigation() {
     };
 
     return (
-        <nav style={{ display: "flex", alignItems: "center", gap: 12, padding: 12, borderBottom: "1px solid #eee" }}>
+        <nav style={{ display: "flex", alignItems: "center", gap: 12, padding: 12, borderBottom: "1px solid #eee", backgroundColor: '#ffffff' }}>
             <h1
                 onClick={goHome}
                 title="메인으로 이동"

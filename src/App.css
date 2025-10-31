@@ -1,0 +1,6 @@
+* {margin: 0; padding: 0;}
+
+/* 기본적으로 body는 흰색으로 유지. Chat이 배경을 설정할 때만 변경 가능하도록 데이터 속성으로 제어합니다. */
+body:not([data-chat-bg]) {
+	background-color: #ffffff;
+}
