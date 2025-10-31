@@ -828,6 +828,7 @@ app.post('/api/diary/session/:id/chat', authMiddleware, async (req: any, res) =>
     const userId = req.user.sub;
     const session = await db.collection('diary_sessions').findOne({ _id: new ObjectId(id), userId });
     if (!session) return res.status(404).json({ message: '세션을 찾을 수 없습니다.' });
+    
     // save user msg
     await db.collection('diary_session_messages').insertOne({ sessionId: session._id, userId, role: 'user', content: text, createdAt: new Date() });
     const history = await db.collection('diary_session_messages').find({ sessionId: session._id }).sort({ createdAt: 1 }).toArray();
@@ -835,18 +836,102 @@ app.post('/api/diary/session/:id/chat', authMiddleware, async (req: any, res) =>
       { role: 'system', content: '당신은 공감적이고 상냥한 상담 동반자입니다. 짧고 따뜻하게, 한국어로 답하세요.' },
       ...history.slice(-20).map((m: any) => ({ role: m.role, content: m.content })),
     ];
+    
     const openai = new OpenAI({ apiKey: OPENAI_API_KEY });
-  const completion = await chatCompletionWithFallback(openai, messages);
+    const completion = await chatCompletionWithFallback(openai, messages);
     const reply = completion.choices?.[0]?.message?.content || '';
     await db.collection('diary_session_messages').insertOne({ sessionId: session._id, userId, role: 'assistant', content: reply, createdAt: new Date() });
-  const mood = await detectEmotionFromText(text);
-  const personalizedColor = await personalizedColorForEmotion(db, userId, mood.color, mood.emotion);
-  const finalMood = { ...mood, color: personalizedColor };
-  await db.collection('diary_sessions').updateOne({ _id: session._id }, { $set: { mood: finalMood, lastUpdatedAt: new Date() } });
-  res.status(201).json({ ok: true, assistant: { content: reply }, mood: finalMood });
+    
+    // 감정 분석: 5턴(10개 메시지) 이상일 때 자동 분석
+    let finalMood = session.mood || null;
+    const totalMessages = history.length + 1; // 새로 추가된 메시지 포함
+    const minMessages = 10; // 최소 요구 메시지 수 (5턴)
+    
+    if (totalMessages >= minMessages && !session.mood) {
+      // 전체 대화 내용을 하나의 텍스트로 결합
+      const allUserMessages = history
+        .filter((m: any) => m.role === 'user')
+        .map((m: any) => m.content)
+        .join(' ');
+      
+      // 전체 대화 흐름을 기반으로 감정 분석
+      const mood = await detectEmotionFromText(allUserMessages);
+      const personalizedColor = await personalizedColorForEmotion(db, userId, mood.color, mood.emotion);
+      finalMood = { ...mood, color: personalizedColor };
+      
+      await db.collection('diary_sessions').updateOne(
+        { _id: session._id }, 
+        { $set: { mood: finalMood, lastUpdatedAt: new Date() } }
+      );
+    } else {
+      // 분석 전이거나 이미 분석된 경우 타임스탬프만 업데이트
+      await db.collection('diary_sessions').updateOne(
+        { _id: session._id }, 
+        { $set: { lastUpdatedAt: new Date() } }
+      );
+    }
+    
+    res.status(201).json({ 
+      ok: true, 
+      assistant: { content: reply }, 
+      mood: finalMood,
+      messageCount: totalMessages,
+      minRequired: minMessages,
+      canAnalyze: totalMessages >= minMessages
+    });
   } catch (e: any) {
     console.error('session chat error:', e?.message || e);
     res.status(500).json({ message: '세션 채팅 처리 오류' });
+  }
+});
+
+// POST /api/diary/session/:id/analyze - 수동 감정 분석 (최소 메시지 수 없이)
+app.post('/api/diary/session/:id/analyze', authMiddleware, async (req: any, res) => {
+  try {
+    if (!OPENAI_API_KEY) return res.status(500).json({ message: 'OPENAI_API_KEY 미설정' });
+    const id = String(req.params.id || '').trim();
+    if (!ObjectId.isValid(id)) return res.status(400).json({ message: '유효하지 않은 ID' });
+    
+    const client = await getClient();
+    const db = client.db(DB_NAME);
+    const userId = req.user.sub;
+    const session = await db.collection('diary_sessions').findOne({ _id: new ObjectId(id), userId });
+    if (!session) return res.status(404).json({ message: '세션을 찾을 수 없습니다.' });
+    
+    // 최소 2개 메시지 필요 (1턴)
+    const history = await db.collection('diary_session_messages')
+      .find({ sessionId: session._id })
+      .sort({ createdAt: 1 })
+      .toArray();
+    
+    if (history.length < 2) {
+      return res.status(400).json({ message: '최소 1턴(2개 메시지) 이상 대화가 필요합니다.' });
+    }
+    
+    // 전체 대화 내용을 하나의 텍스트로 결합
+    const allUserMessages = history
+      .filter((m: any) => m.role === 'user')
+      .map((m: any) => m.content)
+      .join(' ');
+    
+    // 전체 대화 흐름을 기반으로 감정 분석
+    const mood = await detectEmotionFromText(allUserMessages);
+    const personalizedColor = await personalizedColorForEmotion(db, userId, mood.color, mood.emotion);
+    const finalMood = { ...mood, color: personalizedColor };
+    
+    await db.collection('diary_sessions').updateOne(
+      { _id: session._id }, 
+      { $set: { mood: finalMood, lastUpdatedAt: new Date() } }
+    );
+    
+    res.status(200).json({ 
+      ok: true, 
+      mood: finalMood,
+      messageCount: history.length
+    });
+  } catch (e: any) {
+    console.error('manual analyze error:', e?.message || e);
+    res.status(500).json({ message: '감정 분석 오류' });
   }
 });
 

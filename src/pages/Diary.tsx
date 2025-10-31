@@ -62,6 +62,10 @@ export default function Diary() {
     const [messages, setMessages] = useState<DiaryMessage[]>([]);
     // 제목 기능 제거: 더 이상 사용하지 않음
     const [mood, setMood] = useState<{ emotion: string; score: number; color: string } | null>(null);
+    const [messageCount, setMessageCount] = useState<number>(0); // 현재 메시지 개수
+    const [minRequired, setMinRequired] = useState<number>(10); // 최소 요구 메시지 수
+    const [canAnalyze, setCanAnalyze] = useState<boolean>(false); // 분석 가능 여부
+    const [isAnalyzing, setIsAnalyzing] = useState(false); // 수동 분석 중
     const [input, setInput] = useState('');
     const [sending, setSending] = useState(false);
     const [loadingDiary, setLoadingDiary] = useState(false);
@@ -253,6 +257,8 @@ export default function Diary() {
                         ? data.messages.map((m) => ({ id: m.id, role: m.role, content: m.content, createdAt: m.createdAt }))
                 : [];
             setMessages(msgs);
+            setMessageCount(msgs.length);
+            setCanAnalyze(msgs.length >= minRequired);
           setMood(data?.session?.mood ?? null);
           setSelectedDate(String(data?.session?.date || todayKey()));
             await refreshList();
@@ -315,6 +321,19 @@ export default function Diary() {
             const data = await res.json();
             setMessages((prev) => [...prev.slice(0, -1), { role: 'assistant', content: data?.assistant?.content || '' }]);
             setMood(data?.mood ?? null);
+            setMessageCount(data?.messageCount || messages.length + 2);
+            setMinRequired(data?.minRequired || 10);
+            setCanAnalyze(data?.canAnalyze || false);
+            
+            // 최소 메시지 도달 시 토스트 알림
+            if (data?.canAnalyze && !canAnalyze && data?.mood) {
+                showToast({ 
+                    message: '✨ 충분한 대화가 쌓였어요! 전체 감정 분석이 완료되었습니다.', 
+                    type: 'success',
+                    duration: 4000
+                });
+            }
+            
             await refreshList();
         } catch {
             setMessages((prev) => [...prev.slice(0, -1), { role: 'assistant', content: '네트워크 오류가 발생했습니다.' }]);
@@ -327,6 +346,49 @@ export default function Diary() {
         if (e.key === 'Enter' && !e.shiftKey && !(e.nativeEvent as KeyboardEvent).isComposing) {
             e.preventDefault();
             void send();
+        }
+    };
+
+    // 수동 감정 분석
+    const manualAnalyze = async () => {
+        if (isAnalyzing || !selected || messageCount < 2) return;
+        
+        setIsAnalyzing(true);
+        try {
+            const res = await fetch(`/api/diary/session/${selected}/analyze`, {
+                method: 'POST',
+                credentials: 'include',
+            });
+            
+            if (!res.ok) {
+                const error = await res.json();
+                showToast({ 
+                    message: error.message || '분석에 실패했습니다.', 
+                    type: 'error',
+                    duration: 3000
+                });
+                return;
+            }
+            
+            const data = await res.json();
+            setMood(data?.mood ?? null);
+            setCanAnalyze(true);
+            
+            showToast({ 
+                message: '🎨 감정 분석이 완료되었습니다!', 
+                type: 'success',
+                duration: 3000
+            });
+            
+            await refreshList();
+        } catch (error) {
+            showToast({ 
+                message: '네트워크 오류가 발생했습니다.', 
+                type: 'error',
+                duration: 3000
+            });
+        } finally {
+            setIsAnalyzing(false);
         }
     };
 
@@ -837,42 +899,308 @@ export default function Diary() {
 
             {/* 우측: 대화 + 배경색 */}
             <main className="diary-main" style={{ padding: 16, boxSizing: 'border-box' }}>
-                <div style={{ ...bgStyle, border: '1px solid #e5e7eb', borderRadius: 12, minHeight: '70vh', padding: 12, position: 'relative', boxSizing: 'border-box' }}>
-                    {/* 오로라: 채팅창 왼쪽 상단 고정, 크게 (WebGL 우선, 실패/지연 시 CSS 폴백) */}
-                    <div className="aurora-breathe" style={{ position: 'absolute', top: -2, left: -8, zIndex: 1, pointerEvents: 'none', width: 200, height: 200, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <AuroraAuto color={mood?.color || '#a3a3a3'} size={150} />
-                    </div>
-                    {/* 날짜/감정: 오른쪽 상단 정렬, 점수 제거 */}
-                    <div style={{ position: 'absolute', top: 12, right: 12, textAlign: 'right' }}>
-                        <div style={{ fontSize: 18, fontWeight: 700 }}>{selectedDate}</div>
-                        {mood?.emotion && (
-                            <div style={{ fontSize: 12, color: '#374151' }}>감정: {mood.emotion}</div>
-                        )}
-                    </div>
+                {activeTab === 'ai' ? (
+                    // AI 대화 탭 - 기존 UI 유지
+                    <div style={{ ...bgStyle, border: '1px solid #e5e7eb', borderRadius: 12, minHeight: '70vh', padding: 12, position: 'relative', boxSizing: 'border-box' }}>
+                        {/* 오로라: 채팅창 왼쪽 상단 고정, 크게 (WebGL 우선, 실패/지연 시 CSS 폴백) */}
+                        <div className="aurora-breathe" style={{ position: 'absolute', top: -2, left: -8, zIndex: 1, pointerEvents: 'none', width: 200, height: 200, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <AuroraAuto 
+                                color={canAnalyze && mood?.color ? mood.color : '#d1d5db'} 
+                                size={150} 
+                            />
+                        </div>
+                        {/* 날짜/감정/진행률: 오른쪽 상단 정렬 */}
+                        <div style={{ position: 'absolute', top: 12, right: 12, textAlign: 'right', minWidth: 200 }}>
+                            <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>{selectedDate}</div>
+                            {mood?.emotion ? (
+                                <div style={{ 
+                                    fontSize: 13, 
+                                    color: '#374151', 
+                                    background: 'rgba(255,255,255,0.9)',
+                                    padding: '6px 12px',
+                                    borderRadius: 8,
+                                    border: '2px solid #10b981',
+                                    fontWeight: 600,
+                                    display: 'inline-block'
+                                }}>
+                                    ✓ 감정: {mood.emotion}
+                                </div>
+                            ) : (
+                                <div>
+                                    <div style={{ 
+                                        fontSize: 11, 
+                                        color: '#6b7280', 
+                                        marginBottom: 6,
+                                        fontWeight: 600 
+                                    }}>
+                                        진행률: {Math.min(100, Math.round((messageCount / minRequired) * 100))}%
+                                    </div>
+                                    {/* 진행률 바 */}
+                                    <div style={{ 
+                                        width: '100%', 
+                                        height: 8, 
+                                        background: '#e5e7eb', 
+                                        borderRadius: 4,
+                                        overflow: 'hidden',
+                                        boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.1)'
+                                    }}>
+                                        <div style={{ 
+                                            width: `${Math.min(100, (messageCount / minRequired) * 100)}%`, 
+                                            height: '100%', 
+                                            background: messageCount >= minRequired 
+                                                ? 'linear-gradient(90deg, #10b981 0%, #059669 100%)' 
+                                                : 'linear-gradient(90deg, #6366f1 0%, #8b5cf6 100%)',
+                                            transition: 'width 0.5s ease',
+                                            borderRadius: 4
+                                        }} />
+                                    </div>
+                                    <div style={{ fontSize: 10, color: '#9ca3af', marginTop: 4 }}>
+                                        {messageCount}/{minRequired} 메시지
+                                    </div>
+                                </div>
+                            )}
+                        </div>
 
-                    <div className="diary-chat-area" style={{ border: '1px solid #e5e7eb', borderRadius: 12, height: '55vh', minHeight: 320, padding: 12, overflowY: 'auto', background: 'rgba(255,255,255,0.75)', width: 'min(100%, 1200px)', margin: '96px auto 0', boxSizing: 'border-box' }}>
-                        {loadingDiary ? (
-                            <ChatLoadingSkeleton />
-                        ) : (
-                            messages.map(Bubble)
+                        {/* 분석 전 안내 배너 + 수동 분석 버튼 */}
+                        {!mood && messageCount > 0 && (
+                            <div style={{ 
+                                position: 'absolute', 
+                                top: 100, 
+                                left: '50%', 
+                                transform: 'translateX(-50%)', 
+                                background: messageCount >= minRequired 
+                                    ? 'linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%)'
+                                    : 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)',
+                                padding: '14px 24px',
+                                borderRadius: 14,
+                                boxShadow: '0 6px 16px rgba(0, 0, 0, 0.12)',
+                                zIndex: 2,
+                                fontSize: 13,
+                                fontWeight: 600,
+                                color: messageCount >= minRequired ? '#065f46' : '#92400e',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 12,
+                                border: messageCount >= minRequired 
+                                    ? '2px solid #10b981'
+                                    : '2px solid #fbbf24',
+                                maxWidth: '90%'
+                            }}>
+                                <span style={{ fontSize: 18 }}>
+                                    {messageCount >= minRequired ? '✨' : '💭'}
+                                </span>
+                                <div style={{ flex: 1 }}>
+                                    {messageCount >= minRequired ? (
+                                        <span>충분한 대화가 쌓였어요! 감정을 분석할 수 있습니다.</span>
+                                    ) : (
+                                        <span>
+                                            권장: {minRequired - messageCount}개 더 대화 | 
+                                            {messageCount >= 2 ? ' 지금도 분석 가능' : ' 최소 1턴 필요'}
+                                        </span>
+                                    )}
+                                </div>
+                                {messageCount >= 2 && (
+                                    <button
+                                        onClick={manualAnalyze}
+                                        disabled={isAnalyzing}
+                                        style={{
+                                            padding: '8px 16px',
+                                            borderRadius: 8,
+                                            border: 'none',
+                                            background: isAnalyzing 
+                                                ? '#9ca3af'
+                                                : messageCount >= minRequired
+                                                    ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)'
+                                                    : 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
+                                            color: '#fff',
+                                            cursor: isAnalyzing ? 'not-allowed' : 'pointer',
+                                            fontWeight: 700,
+                                            fontSize: 12,
+                                            boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+                                            transition: 'all 0.2s ease',
+                                            whiteSpace: 'nowrap'
+                                        }}
+                                        onMouseEnter={(e) => {
+                                            if (!isAnalyzing) {
+                                                e.currentTarget.style.transform = 'translateY(-1px)';
+                                                e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.2)';
+                                            }
+                                        }}
+                                        onMouseLeave={(e) => {
+                                            e.currentTarget.style.transform = 'translateY(0)';
+                                            e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.15)';
+                                        }}
+                                    >
+                                        {isAnalyzing ? '분석중...' : '🎨 지금 분석하기'}
+                                    </button>
+                                )}
+                            </div>
                         )}
-                        <div ref={bottomRef} />
-                    </div>
 
-                    <form onSubmit={(e) => { e.preventDefault(); void send(); }} style={{ display: 'flex', alignItems: 'flex-end', gap: 8, marginTop: 12 }}>
-                        <textarea
-                            value={input}
-                            onChange={(e) => setInput(e.target.value)}
-                            onKeyDown={onKeyDown}
-                            placeholder="오늘의 생각을 적어보세요. Enter로 전송 (Shift+Enter 줄바꿈)"
-                            rows={2}
-                            style={{ flex: 1, padding: 10, border: '1px solid #e5e7eb', borderRadius: 8, resize: 'vertical', background: '#fff' }}
-                        />
-                        <button type="submit" disabled={sending || !input.trim()} style={{ padding: '10px 14px', borderRadius: 8, border: '1px solid #2563eb', background: sending ? '#93c5fd' : '#2563eb', color: '#fff', cursor: sending ? 'not-allowed' : 'pointer' }}>
-                            {sending ? '전송중…' : '전송'}
-                        </button>
-                    </form>
-                </div>
+                        <div className="diary-chat-area" style={{ border: '1px solid #e5e7eb', borderRadius: 12, height: '55vh', minHeight: 320, padding: 12, overflowY: 'auto', background: 'rgba(255,255,255,0.75)', width: 'min(100%, 1200px)', margin: '96px auto 0', boxSizing: 'border-box' }}>
+                            {loadingDiary ? (
+                                <ChatLoadingSkeleton />
+                            ) : (
+                                messages.map(Bubble)
+                            )}
+                            <div ref={bottomRef} />
+                        </div>
+
+                        <form onSubmit={(e) => { e.preventDefault(); void send(); }} style={{ display: 'flex', alignItems: 'flex-end', gap: 8, marginTop: 12 }}>
+                            <textarea
+                                value={input}
+                                onChange={(e) => setInput(e.target.value)}
+                                onKeyDown={onKeyDown}
+                                placeholder="오늘의 생각을 적어보세요. Enter로 전송 (Shift+Enter 줄바꿈)"
+                                rows={2}
+                                style={{ flex: 1, padding: 10, border: '1px solid #e5e7eb', borderRadius: 8, resize: 'vertical', background: '#fff' }}
+                            />
+                            <button type="submit" disabled={sending || !input.trim()} style={{ padding: '10px 14px', borderRadius: 8, border: '1px solid #2563eb', background: sending ? '#93c5fd' : '#2563eb', color: '#fff', cursor: sending ? 'not-allowed' : 'pointer' }}>
+                                {sending ? '전송중…' : '전송'}
+                            </button>
+                        </form>
+                    </div>
+                ) : (
+                    // 온라인 채팅 탭 - 상단: 온라인 대화 기록 (읽기 전용), 하단: AI와 대화
+                    <div style={{ ...bgStyle, border: '1px solid #e5e7eb', borderRadius: 12, height: 'calc(100vh - 88px)', padding: 16, boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: 16 }}>
+                        {/* 상단: 온라인 채팅 기록 (읽기 전용) */}
+                        <div style={{ flex: '0 0 280px', display: 'flex', flexDirection: 'column' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                                <div style={{ fontSize: 18, fontWeight: 700, color: '#374151', display: 'flex', alignItems: 'center', gap: 8 }}>
+                                    <span>💬</span>
+                                    <span>온라인 채팅 기록</span>
+                                </div>
+                                <div style={{ fontSize: 13, color: '#6b7280' }}>{selectedDate}</div>
+                            </div>
+                            <div style={{ 
+                                flex: 1, 
+                                border: '2px solid #e5e7eb', 
+                                borderRadius: 12, 
+                                padding: 12, 
+                                overflowY: 'auto', 
+                                background: 'linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(249,250,251,0.95) 100%)',
+                                boxShadow: '0 2px 8px rgba(0,0,0,0.05)'
+                            }}>
+                                {loadingDiary ? (
+                                    <ChatLoadingSkeleton />
+                                ) : messages.length > 0 ? (
+                                    messages.map(Bubble)
+                                ) : (
+                                    <div style={{ 
+                                        textAlign: 'center', 
+                                        color: '#9ca3af', 
+                                        padding: '40px 20px',
+                                        display: 'flex',
+                                        flexDirection: 'column',
+                                        alignItems: 'center',
+                                        gap: 12
+                                    }}>
+                                        <div style={{ fontSize: 48, opacity: 0.5 }}>💬</div>
+                                        <div style={{ fontSize: 14 }}>온라인 채팅 기록이 없습니다</div>
+                                    </div>
+                                )}
+                                <div ref={bottomRef} />
+                            </div>
+                        </div>
+
+                        {/* 하단: AI와 대화 */}
+                        <div style={{ 
+                            flex: '1 1 auto', 
+                            border: '2px solid #6366f1', 
+                            borderRadius: 16, 
+                            padding: 20, 
+                            background: 'linear-gradient(135deg, rgba(255,255,255,0.98) 0%, rgba(238,242,255,0.98) 100%)', 
+                            position: 'relative',
+                            boxSizing: 'border-box',
+                            boxShadow: '0 4px 16px rgba(99,102,241,0.15)',
+                            display: 'flex',
+                            flexDirection: 'column'
+                        }}>
+                            {/* 오로라: 좌상단 */}
+                            <div className="aurora-breathe" style={{ 
+                                position: 'absolute', 
+                                top: -16, 
+                                left: -16, 
+                                zIndex: 1, 
+                                pointerEvents: 'none', 
+                                width: 120, 
+                                height: 120, 
+                                display: 'flex', 
+                                alignItems: 'center', 
+                                justifyContent: 'center' 
+                            }}>
+                                <AuroraAuto color={mood?.color || '#6366f1'} size={100} />
+                            </div>
+                            
+                            <div style={{ marginBottom: 12, paddingTop: 12 }}>
+                                <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 6, color: '#374151', display: 'flex', alignItems: 'center', gap: 8 }}>
+                                    <span>🤖</span>
+                                    <span>AI와 대화하기</span>
+                                </div>
+                                <div style={{ fontSize: 13, color: '#6b7280' }}>
+                                    이 대화에 대해 더 이야기 나눠보세요
+                                </div>
+                            </div>
+                            
+                            <form onSubmit={(e) => { e.preventDefault(); void send(); }} style={{ display: 'flex', alignItems: 'flex-end', gap: 10, marginTop: 'auto' }}>
+                                <textarea
+                                    value={input}
+                                    onChange={(e) => setInput(e.target.value)}
+                                    onKeyDown={onKeyDown}
+                                    placeholder="온라인 대화에 대해 AI와 이야기해보세요..."
+                                    rows={3}
+                                    style={{ 
+                                        flex: 1, 
+                                        padding: 12, 
+                                        border: '2px solid #e5e7eb', 
+                                        borderRadius: 10, 
+                                        resize: 'none', 
+                                        background: '#fff',
+                                        fontSize: 14,
+                                        transition: 'all 0.2s ease',
+                                        outline: 'none'
+                                    }}
+                                    onFocus={(e) => {
+                                        e.currentTarget.style.borderColor = '#6366f1';
+                                        e.currentTarget.style.boxShadow = '0 0 0 3px rgba(99,102,241,0.1)';
+                                    }}
+                                    onBlur={(e) => {
+                                        e.currentTarget.style.borderColor = '#e5e7eb';
+                                        e.currentTarget.style.boxShadow = 'none';
+                                    }}
+                                />
+                                <button 
+                                    type="submit" 
+                                    disabled={sending || !input.trim()} 
+                                    style={{ 
+                                        padding: '12px 20px', 
+                                        borderRadius: 10, 
+                                        border: 'none', 
+                                        background: sending || !input.trim() ? '#d1d5db' : 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)', 
+                                        color: '#fff', 
+                                        cursor: sending || !input.trim() ? 'not-allowed' : 'pointer',
+                                        fontWeight: 600,
+                                        fontSize: 14,
+                                        transition: 'all 0.2s ease',
+                                        boxShadow: sending || !input.trim() ? 'none' : '0 2px 8px rgba(99,102,241,0.3)'
+                                    }}
+                                    onMouseEnter={(e) => {
+                                        if (!sending && input.trim()) {
+                                            e.currentTarget.style.transform = 'translateY(-1px)';
+                                            e.currentTarget.style.boxShadow = '0 4px 12px rgba(99,102,241,0.4)';
+                                        }
+                                    }}
+                                    onMouseLeave={(e) => {
+                                        e.currentTarget.style.transform = 'translateY(0)';
+                                        e.currentTarget.style.boxShadow = sending || !input.trim() ? 'none' : '0 2px 8px rgba(99,102,241,0.3)';
+                                    }}
+                                >
+                                    {sending ? '전송중…' : '전송'}
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                )}
             </main>
         </div>
         </>
