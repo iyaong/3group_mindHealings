@@ -1,6 +1,6 @@
 // Chat.tsx — AI와 채팅하는 페이지 (프론트엔드 채팅 인터페이스)
 import { useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom"; // 페이지 이동용 훅
+import { useNavigate, useLocation } from "react-router-dom"; // 페이지 이동용 훅
 import { useAuth } from "../hooks/useAuth"; // 로그인 상태 관리용 커스텀 훅
 import "./Chat.css";
 
@@ -11,6 +11,7 @@ type AiMsg = { role: 'user' | 'assistant'; content: string };
 // Chat 컴포넌트 (기본 내보내기)
 export default function Chat() {
     const navigate = useNavigate(); // 로그인 안 된 사용자를 리다이렉트하기 위해 사용
+    const location = useLocation(); // Home에서 전달된 state를 받기 위해 사용
     const { user, loading } = useAuth(); // 로그인 상태 확인
     const [msgs, setMsgs] = useState<AiMsg[]>([
         // 초기 메시지(첫 인사)
@@ -24,6 +25,8 @@ export default function Chat() {
     const prevBodyBgRef = useRef<string | null>(null);
     const prevNavBgRef = useRef<string | null>(null);
     const navChangedRef = useRef(false);
+    // Home에서 전달된 초기 메시지를 한 번만 처리하기 위한 ref
+    const initialMessageProcessed = useRef(false);
 
     // 채팅 기록 불러오기 (컴포넌트 처음 렌더링 시 1회 실행)
     useEffect(() => {
@@ -92,9 +95,28 @@ export default function Chat() {
         bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [msgs]);
 
-    // 메시지 전송 함수
-    const send = async () => {
-        const prompt = input.trim(); // 공백 제거
+    // Home에서 전달된 초기 메시지를 자동으로 전송
+    useEffect(() => {
+        // 로그인 확인이 완료되고, 사용자가 있고, 아직 처리하지 않았으면
+        if (loading || !user || initialMessageProcessed.current) return;
+        
+        // location.state에서 initialMessage 추출
+        const state = location.state as { initialMessage?: string } | null;
+        const initialMessage = state?.initialMessage;
+        
+        // 초기 메시지가 있으면 자동으로 전송
+        if (initialMessage && initialMessage.trim()) {
+            initialMessageProcessed.current = true; // 한 번만 실행되도록 표시
+            // 약간의 딜레이를 주어 UI가 안정화된 후 전송
+            setTimeout(() => {
+                void send(initialMessage);
+            }, 300);
+        }
+    }, [loading, user, location.state]);
+
+    // 메시지 전송 함수 (파라미터로 메시지를 받을 수 있음)
+    const send = async (message?: string) => {
+        const prompt = (message || input).trim(); // 파라미터가 있으면 사용, 없으면 input 사용
         if (!prompt || sending) return; // 입력이 비어 있거나 이미 전송 중이면 무시
 
         setSending(true);

@@ -2,26 +2,29 @@
 // 토닥톡 홈페이지에 접속했을 때 첫 화면입니다.
 // AI와 대화할 수 있습니다.
 
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 export default function Home() {
 
     // navigate: 페이지를 이동할 때 사용
     const navigate = useNavigate();
-
-    // (단순화) 첫 입력 → /chat 라우팅으로 변경됨
+    
+    // 사용자가 입력하는 텍스트를 관리하는 state
+    const [inputText, setInputText] = useState("");
 
     // firstChat: 처음으로 input에서 Enter를 눌렀을 때
     const firstChat = (event: React.FormEvent<HTMLFormElement>) => {
         // 새로고침 방지
         event.preventDefault();
-        // 첫 입력 후 즉시 /chat 으로 이동
-        navigate('/chat');
+        
+        // 입력값이 비어있으면 무시
+        const text = inputText.trim();
+        if (!text) return;
+        
+        // 입력한 텍스트를 state로 전달하면서 /chat 으로 이동
+        navigate('/chat', { state: { initialMessage: text } });
     }
-
-    // (미사용) 이전 단계 핸들러 제거
-
-    // (단순화) 저장 팝업 제거
 
     return (
         <>
@@ -33,6 +36,8 @@ export default function Home() {
                 </div>
                 <form onSubmit={firstChat} style={{ width: '100%', display: 'flex', justifyContent: 'center' }}>
                     <input
+                        value={inputText}
+                        onChange={(e) => setInputText(e.target.value)}
                         placeholder="한 줄로 시작해 보세요…"
                         style={{
                             width: '100%', maxWidth: 540,
