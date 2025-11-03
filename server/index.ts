@@ -1222,6 +1222,24 @@ server.on("connection", (client) => {
   // -log-
   console.log(`새 사용자 접속: ${client.id}`);
 
+  // 클라이언트 -> 서버 (userDisconnect)
+  client.on("userDisconnect", () => {
+    // -log-
+    console.log(`사용자 접속 종료: ${client.id}`);
+    
+    // 매칭 대기 중이던 사용자가 접속을 종료한 경우
+    if (waitingUser === client.id) {
+      waitingUser = null;
+    }
+    
+    // 해당 사용자가 속한 모든 방에서 퇴장 알림
+    client.rooms.forEach((room) => {
+      if (room !== client.id) {  // 자신의 룸이 아닌 경우에만
+        client.to(room).emit("userLeft", { userId: client.id });
+      }
+    });
+  });
+
   // ----------------- # startMatching -시작- -----------------
   // 클라이언트 -> 서버 (startMatching)
   client.on("startMatching", () => {
