@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import AuroraOrb from '../components/AuroraOrb';
-import AuroraAuto from '../components/AuroraAuto';
+import EmotionOrbv1 from '../components/EmotionOrbv1';
 import { useToast } from '../components/Toast';
 import { ChatLoadingSkeleton, DiaryListSkeleton } from '../components/Skeleton';
 import DiaryCalendar from '../components/DiaryCalendar';
@@ -90,6 +90,27 @@ export default function Diary() {
             background: `linear-gradient(to bottom, ${overlay} 10%, ${overlay} 75%, ${c} 100%)`,
         } as React.CSSProperties;
     }, [mood]);
+
+    // EmotionOrb 색상 안정화 - 디버깅 강화
+    const emotionOrbColor = useMemo(() => {
+        // 기본값을 명확한 파란색으로 변경 (테스트용)
+        const color = mood?.color || '#6366f1';
+        console.log('🎨 EmotionOrb Color Update:', {
+            mood: mood?.emotion,
+            color: color,
+            canAnalyze: canAnalyze,
+            moodData: mood,
+            hasMood: !!mood,
+            hasColor: !!mood?.color,
+            selected: selected,
+            defaultUsed: !mood?.color
+        });
+        return color;
+    }, [mood, canAnalyze, selected]);
+
+    const onlineOrbColor = useMemo(() => {
+        return mood?.color || '#6366f1';
+    }, [mood?.color]);
 
     // 검색어로 AI 세션 필터링
     const searchFilteredAISessions = useMemo(() => {
@@ -213,6 +234,11 @@ export default function Diary() {
           const res = await fetch(`/api/diary/session/${sessionId}`, { credentials: 'include' });
             if (!res.ok) return;
                     const data: DiarySessionDetailApiResponse = await res.json();
+            console.log('📂 Load Session:', {
+                sessionId,
+                mood: data?.session?.mood,
+                color: data?.session?.mood?.color
+            });
             const msgs: DiaryMessage[] = Array.isArray(data?.messages)
                         ? data.messages.map((m) => ({ id: m.id, role: m.role, content: m.content, createdAt: m.createdAt }))
                 : [];
@@ -279,6 +305,11 @@ export default function Diary() {
                 return;
             }
             const data = await res.json();
+            console.log('📨 Server Response:', {
+                mood: data?.mood,
+                canAnalyze: data?.canAnalyze,
+                messageCount: data?.messageCount
+            });
             setMessages((prev) => [...prev.slice(0, -1), { role: 'assistant', content: data?.assistant?.content || '' }]);
             setMood(data?.mood ?? null);
             setMessageCount(data?.messageCount || messages.length + 2);
@@ -331,6 +362,10 @@ export default function Diary() {
             }
             
             const data = await res.json();
+            console.log('🎨 Manual Analyze Response:', {
+                mood: data?.mood,
+                color: data?.mood?.color
+            });
             setMood(data?.mood ?? null);
             setCanAnalyze(true);
             
@@ -862,12 +897,30 @@ export default function Diary() {
                 {activeTab === 'ai' ? (
                     // AI 대화 탭 - 기존 UI 유지
                     <div style={{ ...bgStyle, border: '1px solid #e5e7eb', borderRadius: 12, minHeight: '70vh', padding: 12, position: 'relative', boxSizing: 'border-box' }}>
-                        {/* 오로라: 채팅창 왼쪽 상단 고정, 크게 (WebGL 우선, 실패/지연 시 CSS 폴백) */}
+                        {/* 감정 오브: 채팅창 왼쪽 상단 고정, 크게 */}
                         <div className="aurora-breathe" style={{ position: 'absolute', top: -2, left: -8, zIndex: 1, pointerEvents: 'none', width: 200, height: 200, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                            <AuroraAuto 
-                                color={canAnalyze && mood?.color ? mood.color : '#d1d5db'} 
-                                size={150} 
+                            <EmotionOrbv1 
+                                color={emotionOrbColor} 
+                                size={150}
+                                intensity={0.85}
                             />
+                            {/* 디버깅 정보 */}
+                            <div style={{ 
+                                position: 'absolute', 
+                                bottom: 10, 
+                                left: 10, 
+                                background: 'rgba(0,0,0,0.7)', 
+                                color: '#fff', 
+                                padding: '8px 12px', 
+                                borderRadius: 6, 
+                                fontSize: 11,
+                                fontFamily: 'monospace',
+                                zIndex: 10
+                            }}>
+                                Color: {emotionOrbColor}
+                                <br/>
+                                Mood: {mood?.emotion || 'none'}
+                            </div>
                         </div>
                         {/* 날짜/감정/진행률: 오른쪽 상단 정렬 */}
                         <div style={{ position: 'absolute', top: 12, right: 12, textAlign: 'right', minWidth: 200 }}>
@@ -1089,7 +1142,7 @@ export default function Diary() {
                                 alignItems: 'center', 
                                 justifyContent: 'center' 
                             }}>
-                                <AuroraAuto color={mood?.color || '#6366f1'} size={100} />
+                                <EmotionOrbv1 color={onlineOrbColor} size={100} intensity={0.7} />
                             </div>
                             
                             <div style={{ marginBottom: 12, paddingTop: 12 }}>

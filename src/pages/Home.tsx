@@ -28,7 +28,38 @@ export default function Home() {
 
     return (
         <>
-        <div id="homeWrap" style={{ width: '100%', minHeight: 'calc(100vh - 56px)', display: 'grid', placeItems: 'center', background: 'linear-gradient(135deg, #f8fafc 0%, #eef2ff 100%)' }}>
+        <div id="homeWrap" style={{ width: '100%', minHeight: 'calc(100vh - 56px)', display: 'grid', placeItems: 'center', background: 'linear-gradient(135deg, #f8fafc 0%, #eef2ff 100%)', position: 'relative' }}>
+            {/* Orb Showcase Button */}
+            <button
+                onClick={() => navigate('/orb-showcase')}
+                style={{
+                    position: 'fixed',
+                    bottom: 30,
+                    right: 30,
+                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                    color: 'white',
+                    border: 'none',
+                    padding: '14px 28px',
+                    borderRadius: 16,
+                    fontSize: 15,
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    boxShadow: '0 8px 25px rgba(102, 126, 234, 0.4)',
+                    transition: 'all 0.3s ease',
+                    zIndex: 100,
+                }}
+                onMouseEnter={(e) => {
+                    e.currentTarget.style.transform = 'translateY(-3px) scale(1.05)';
+                    e.currentTarget.style.boxShadow = '0 12px 35px rgba(102, 126, 234, 0.5)';
+                }}
+                onMouseLeave={(e) => {
+                    e.currentTarget.style.transform = 'translateY(0) scale(1)';
+                    e.currentTarget.style.boxShadow = '0 8px 25px rgba(102, 126, 234, 0.4)';
+                }}
+            >
+                ✨ 3D Orb Showcase
+            </button>
+
             <div className="mainview" style={{ width: 'min(720px, 92%)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 20 }}>
                 <div style={{ textAlign: 'center' }}>
                     <div className="home-title" style={{ fontSize: 22, fontWeight: 800, color: '#111827' }}>오늘 하루는 어땠나요?</div>

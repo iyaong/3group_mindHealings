@@ -8,6 +8,7 @@ import Chat from './pages/Chat';
 import Online from './pages/Online';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import OrbShowcase from './pages/OrbShowcase';
 
 
 export default function App() {
@@ -22,6 +23,7 @@ export default function App() {
           <Route path="/online" element={<Online />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
+          <Route path="/orb-showcase" element={<OrbShowcase />} />
         </Routes>
       </div>
     </Router>

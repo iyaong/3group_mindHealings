@@ -56,22 +56,28 @@ export default function Register() {
                 <div className="auth-container" style={{ width: 'min(420px, 92%)', background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: 20, boxShadow: '0 10px 30px rgba(0,0,0,0.06)' }}>
                     <div className="auth-title" style={{ fontSize: 18, fontWeight: 800, marginBottom: 12 }}>회원가입</div>
                     <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                        <label style={{ fontSize: 12, color: '#374151' }}>이메일</label>
+                        <label htmlFor="register-email" style={{ fontSize: 12, color: '#374151' }}>이메일</label>
                         <input
+                            id="register-email"
+                            name="email"
                             type="email"
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
                             placeholder="you@example.com"
                             required
+                            autoComplete="email"
                             style={{ padding: '10px 12px', border: '1px solid #e5e7eb', borderRadius: 8 }}
                         />
-                        <label style={{ fontSize: 12, color: '#374151' }}>비밀번호</label>
+                        <label htmlFor="register-password" style={{ fontSize: 12, color: '#374151' }}>비밀번호</label>
                         <input
+                            id="register-password"
+                            name="password"
                             type="password"
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
                             placeholder="••••••••"
                             required
+                            autoComplete="new-password"
                             style={{ padding: '10px 12px', border: '1px solid #e5e7eb', borderRadius: 8 }}
                         />
                         <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>

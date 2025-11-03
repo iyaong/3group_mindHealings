@@ -216,7 +216,13 @@ export default function Online() {
   // -------------------------------------- 서버 상호작용 -시작- --------------------------------------
   useEffect(() => {
     // 서버 주소에 맞게 포트 확인 (백엔드에서 httpServer.listen(PORT)와 동일해야 함)
-    const client = io(serverLink);
+    // Chrome Private Network Access 경고: localhost HTTP 연결 시 발생하는 경고입니다.
+    // 개발 환경에서는 정상 동작하며, 프로덕션에서는 HTTPS 사용을 권장합니다.
+    const client = io(serverLink, {
+      transports: ['websocket', 'polling'], // WebSocket 우선 사용
+      upgrade: true, // polling에서 websocket으로 업그레이드
+      rememberUpgrade: true, // 업그레이드 기억
+    });
     setSocket(client);
 
     // 서버 -> 클라이언트 (matched)

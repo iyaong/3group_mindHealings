@@ -839,22 +839,45 @@ app.post('/api/diary/session/:id/chat', authMiddleware, async (req: any, res) =>
     
     const openai = new OpenAI({ apiKey: OPENAI_API_KEY });
     const completion = await chatCompletionWithFallback(openai, messages);
-    const reply = completion.choices?.[0]?.message?.content || '';
-    await db.collection('diary_session_messages').insertOne({ sessionId: session._id, userId, role: 'assistant', content: reply, createdAt: new Date() });
+    const rawReply = completion.choices?.[0]?.message?.content || '';
     
-    // 감정 분석: 5턴(10개 메시지) 이상일 때 자동 분석
+    // AI 응답에서 {"color":"#..."} 추출
+    let extractedColor: string | null = null;
+    let cleanReply = rawReply;
+    const colorMatch = rawReply.match(/\{"color"\s*:\s*"(#[0-9a-fA-F]{6})"\}/);
+    if (colorMatch) {
+      extractedColor = colorMatch[1];
+      cleanReply = rawReply.replace(colorMatch[0], '').trim();
+      console.log('🎨 AI가 선택한 색상:', extractedColor);
+    }
+    
+    await db.collection('diary_session_messages').insertOne({ sessionId: session._id, userId, role: 'assistant', content: cleanReply, createdAt: new Date() });
+    
+    // 감정 분석: 매 메시지마다 업데이트 (AI가 준 색상 우선 사용)
     let finalMood = session.mood || null;
-    const totalMessages = history.length + 1; // 새로 추가된 메시지 포함
-    const minMessages = 10; // 최소 요구 메시지 수 (5턴)
+    const totalMessages = history.length + 1;
+    const minMessages = 10;
     
-    if (totalMessages >= minMessages && !session.mood) {
-      // 전체 대화 내용을 하나의 텍스트로 결합
+    // AI가 색상을 제공했다면 즉시 사용
+    if (extractedColor) {
       const allUserMessages = history
         .filter((m: any) => m.role === 'user')
         .map((m: any) => m.content)
         .join(' ');
+      const mood = await detectEmotionFromText(allUserMessages);
+      finalMood = { ...mood, color: extractedColor }; // AI가 준 색상 사용!
+      console.log('✨ 최종 감정:', finalMood);
       
-      // 전체 대화 흐름을 기반으로 감정 분석
+      await db.collection('diary_sessions').updateOne(
+        { _id: session._id }, 
+        { $set: { mood: finalMood, lastUpdatedAt: new Date() } }
+      );
+    } else if (totalMessages >= minMessages && !session.mood) {
+      // AI가 색상을 안 줬고, 최소 메시지 이상이면 기존 로직 사용
+      const allUserMessages = history
+        .filter((m: any) => m.role === 'user')
+        .map((m: any) => m.content)
+        .join(' ');
       const mood = await detectEmotionFromText(allUserMessages);
       const personalizedColor = await personalizedColorForEmotion(db, userId, mood.color, mood.emotion);
       finalMood = { ...mood, color: personalizedColor };
@@ -873,11 +896,12 @@ app.post('/api/diary/session/:id/chat', authMiddleware, async (req: any, res) =>
     
     res.status(201).json({ 
       ok: true, 
-      assistant: { content: reply }, 
+      assistant: { content: cleanReply }, 
       mood: finalMood,
       messageCount: totalMessages,
       minRequired: minMessages,
-      canAnalyze: totalMessages >= minMessages
+      canAnalyze: totalMessages >= minMessages,
+      extractedColor: extractedColor // 디버깅용
     });
   } catch (e: any) {
     console.error('session chat error:', e?.message || e);
