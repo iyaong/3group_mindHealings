@@ -1215,6 +1215,9 @@ const server = new Server(httpServer, { cors: { origin: "*" } });
 // waitingUser: 현재 매칭을 기다리고 있는 사용자
 let waitingUser: string | null = null;
 
+// 방 별 사용자 관리를 위한 Map
+const roomUsers = new Map<string, string[]>();
+
 // ------------------------- # connection -시작- -------------------------
 // 클라이언트 -> 서버 (connection)
 server.on("connection", (client) => {
@@ -1229,15 +1232,11 @@ server.on("connection", (client) => {
     
     // 매칭 대기 중이던 사용자가 접속을 종료한 경우
     if (waitingUser === client.id) {
+
+      // 대기열 비우기
       waitingUser = null;
     }
     
-    // 해당 사용자가 속한 모든 방에서 퇴장 알림
-    client.rooms.forEach((room) => {
-      if (room !== client.id) {  // 자신의 룸이 아닌 경우에만
-        client.to(room).emit("userLeft", { userId: client.id });
-      }
-    });
   });
 
   // ----------------- # startMatching -시작- -----------------
@@ -1256,6 +1255,9 @@ server.on("connection", (client) => {
       // 두 클라이언트를 roomId방 안에 넣기
       server.sockets.sockets.get(waitingUser)?.join(roomId);
       client.join(roomId);
+
+      // 방 사용자 목록에 추가
+      roomUsers.set(roomId, [waitingUser, client.id]);
 
       // (1번 이벤트 루프를 건너뛴 다음) 두 클라이언트에게 matched 이벤트 보내기 (1대1 채팅 매칭 성공)
       setTimeout(() => {
@@ -1331,12 +1333,29 @@ server.on("connection", (client) => {
 
   // 클라이언트 -> 서버 (disconnect): 연결 종료
   client.on("disconnect", () => {
-
     // -log-
     console.log(`연결 종료: ${client.id}`);
 
     // 만약 대기열에 있던 클라이언트라면 대기열 비우기
-    if (client.id == waitingUser) waitingUser = null;
+    if (client.id == waitingUser) {
+      waitingUser = null;
+    }
+
+    // 사용자가 속한 방을 찾아서 처리
+    for (const [roomId, users] of roomUsers.entries()) {
+      if (users.includes(client.id)) {
+        // 남은 사용자에게 상대방 연결 종료 알림
+        const otherUser = users.find(id => id !== client.id);
+        if (otherUser) {
+          server.to(otherUser).emit("userLeft", { 
+            message: "상대방이 대화방을 나갔습니다." 
+          });
+        }
+        // 방 목록에서 제거
+        roomUsers.delete(roomId);
+        break;
+      }
+    }
   });
 
 });

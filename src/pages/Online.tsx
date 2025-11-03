@@ -11,7 +11,7 @@ import './Online.css';
 export default function Online() {
 
   // 서버 주소: 개발 환경에서는 localhost, 프로덕션에서는 환경변수 사용
-  const serverLink = import.meta.env.VITE_SOCKET_SERVER_URL || "http://localhost:7780";
+  const serverLink = import.meta.env.VITE_SOCKET_SERVER_URL || "http://192.168.4.16:7780";
 
   // navigate: 페이지를 이동할 때 사용
   const navigate = useNavigate();
@@ -256,9 +256,23 @@ export default function Online() {
 
     // 서버 -> 클라이언트 (chat)
     client.on("chat", (data) => {
-
       // 채팅 메시지 배열에 서버로부터 받은 메시지 추가
       setMessages((previous) => [...previous, data])
+    });
+
+    // 상대방 연결 종료 처리
+    client.on("userLeft", (data) => {
+      // 시스템 메시지로 상대방 퇴장 알림 추가
+      setMessages(prev => [...prev, {
+        user: 'system',
+        text: data.message,
+        color: '#6b7280' // 회색으로 시스템 메시지 표시
+      }]);
+      showToast({ 
+        message: data.message, 
+        type: 'warning', 
+        duration: 3000 
+      });
     });
 
   }, []);
@@ -373,30 +387,16 @@ export default function Online() {
             </p>
             
             {/* 프로필 카드들 */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+            <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'center', gap: 20 }}>
               {/* 상대방 프로필 */}
-              <div style={{
-                background: 'rgba(255, 255, 255, 0.9)',
-                backdropFilter: 'blur(20px)',
-                borderRadius: 20,
-                padding: 24,
-                border: '2px solid #e0e7ff',
-                boxShadow: '0 10px 40px rgba(102, 126, 234, 0.15)'
-              }}>
+              <div className="profile_card">
                 <div style={{ fontSize: 48, marginBottom: 12 }}>😊</div>
                 <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 8, color: '#374151' }}>상대방</div>
                 <div style={{ fontSize: 14, color: '#6b7280' }}>당신의 파트너</div>
               </div>
               
               {/* 내 프로필 */}
-              <div style={{
-                background: 'rgba(255, 255, 255, 0.9)',
-                backdropFilter: 'blur(20px)',
-                borderRadius: 20,
-                padding: 24,
-                border: '2px solid #c7d2fe',
-                boxShadow: '0 10px 40px rgba(102, 126, 234, 0.1)'
-              }}>
+              <div className="profile_card">
                 <div style={{ fontSize: 48, marginBottom: 12 }}>👤</div>
                 <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 8, color: '#374151' }}>나</div>
                 <div style={{ fontSize: 14, color: '#6b7280' }}>당신</div>

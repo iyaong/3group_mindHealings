@@ -2,13 +2,23 @@
 
 /* pulse 애니메이션 */
 @keyframes pulse {
-  0%, 100% {
+
+  0%,
+  100% {
     opacity: 0.6;
     transform: scale(1);
   }
+
   50% {
     opacity: 1;
     transform: scale(1.1);
   }
 }
 
+.profile_card {
+  width: 300px;
+  height: 200px;
+  border: 2px solid #e0e7ff;
+  border-radius: 20px;
+  box-shadow: 0 10px 40px rgba(102, 126, 234, 0.15);
+}
