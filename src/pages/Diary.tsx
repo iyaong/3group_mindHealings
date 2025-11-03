@@ -90,22 +90,11 @@ export default function Diary() {
         } as React.CSSProperties;
     }, [mood]);
 
-    // EmotionOrb 색상 안정화 - 디버깅 강화
+    // EmotionOrb 색상
     const emotionOrbColor = useMemo(() => {
-        // 기본값을 명확한 파란색으로 변경 (테스트용)
         const color = mood?.color || '#6366f1';
-        console.log('🎨 EmotionOrb Color Update:', {
-            mood: mood?.emotion,
-            color: color,
-            canAnalyze: canAnalyze,
-            moodData: mood,
-            hasMood: !!mood,
-            hasColor: !!mood?.color,
-            selected: selected,
-            defaultUsed: !mood?.color
-        });
         return color;
-    }, [mood, canAnalyze, selected]);
+    }, [mood]);
 
     const onlineOrbColor = useMemo(() => {
         return mood?.color || '#6366f1';
@@ -256,21 +245,33 @@ export default function Diary() {
             if (loading || !user) return;
             (async () => {
                 try {
-                    const res = await fetch('/api/diary/sessions', { credentials: 'include' });
-                    if (!res.ok) return;
-                    const data: DiarySessionsApiResponse = await res.json();
-                    const items: DiarySessionResponse[] = Array.isArray(data?.items) ? data.items : [];
-                    setList(items.map((d) => ({ ...d, _id: String(d._id) })));
-                    if (items.length === 0) {
-                        // 첫 세션 자동 생성
-                        await createToday();
-                    } else {
-                        const id = String(items[0]._id);
-                        const firstDate = items[0].date;
-                        setSelected(id);
-                        await loadSession(id);
-                        // 첫 번째 날짜 자동으로 펼치기
-                        setExpandedDates(new Set([firstDate]));
+                    // AI 세션 목록 조회
+                    const aiRes = await fetch('/api/diary/sessions?type=ai', { credentials: 'include' });
+                    if (aiRes.ok) {
+                        const aiData: DiarySessionsApiResponse = await aiRes.json();
+                        const items: DiarySessionResponse[] = Array.isArray(aiData?.items) ? aiData.items : [];
+                        setList(items.map((d) => ({ ...d, _id: String(d._id) })));
+                        
+                        if (items.length === 0) {
+                            // 첫 세션 자동 생성
+                            await createToday();
+                        } else {
+                            const id = String(items[0]._id);
+                            const firstDate = items[0].date;
+                            setSelected(id);
+                            await loadSession(id);
+                            // 첫 번째 날짜 자동으로 펼치기
+                            setExpandedDates(new Set([firstDate]));
+                        }
+                    }
+                    
+                    // 온라인 채팅 목록도 함께 로드
+                    const onlineRes = await fetch('/api/diary/sessions?type=online', { credentials: 'include' });
+                    if (onlineRes.ok) {
+                        const onlineData: DiarySessionsApiResponse = await onlineRes.json();
+                        if (Array.isArray(onlineData?.items)) {
+                            setOnlineList(onlineData.items.map((d) => ({ ...d, _id: String(d._id) })));
+                        }
                     }
                 } catch {
                     // ignore
@@ -591,7 +592,7 @@ export default function Diary() {
 
                 {/* AI 대화 목록 */}
                 {activeTab === 'ai' && (
-                    <div className="diary-list" style={{ display: 'flex', flexDirection: 'column', gap: 6, overflowY: 'auto', flex: 1 }}>
+                    <div className="diary-list" style={{ display: 'flex', flexDirection: 'column', gap: 6, overflowY: 'auto', flex: 1, minHeight: 0 }}>
                         {loadingList ? (
                             <DiaryListSkeleton />
                         ) : list.length === 0 ? (
@@ -784,7 +785,15 @@ export default function Diary() {
                                                                 )}
                                                             </div>
                                                             {!isEditing && item.preview && (
-                                                                <div style={{ color: '#6b7280', fontSize: 10, marginTop: 2, marginLeft: 20 }}>
+                                                                <div style={{ 
+                                                                    color: '#6b7280', 
+                                                                    fontSize: 10, 
+                                                                    marginTop: 2, 
+                                                                    marginLeft: 20,
+                                                                    overflow: 'hidden',
+                                                                    textOverflow: 'ellipsis',
+                                                                    whiteSpace: 'nowrap'
+                                                                }}>
                                                                     {highlightText(item.preview, searchQuery)}
                                                                 </div>
                                                             )}
@@ -802,7 +811,7 @@ export default function Diary() {
 
                 {/* 온라인 채팅 목록 */}
                 {activeTab === 'online' && (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, overflowY: 'auto', flex: 1 }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, overflowY: 'auto', flex: 1, minHeight: 0 }}>
                         {loadingList ? (
                             <DiaryListSkeleton />
                         ) : onlineList.length === 0 ? (
@@ -837,7 +846,15 @@ export default function Diary() {
                                                     style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'transparent', border: 'none', padding: 0, cursor: 'pointer', flex: 1, textAlign: 'left' }}
                                                 >
                                                     <span style={{ fontSize: 12 }}>💬</span>
-                                                    <div style={{ fontWeight: 600, fontSize: 12 }}>{highlightText(displayTitle, searchQuery)}</div>
+                                                    <div style={{ 
+                                                        fontWeight: 600, 
+                                                        fontSize: 12,
+                                                        overflow: 'hidden',
+                                                        textOverflow: 'ellipsis',
+                                                        whiteSpace: 'nowrap',
+                                                        flex: 1,
+                                                        minWidth: 0
+                                                    }}>{highlightText(displayTitle, searchQuery)}</div>
                                                 </button>
                                                 <button
                                                     title="이 채팅 삭제"
@@ -846,7 +863,15 @@ export default function Diary() {
                                                 >🗑</button>
                                             </div>
                                             {item.preview && (
-                                                <div style={{ color: '#6b7280', fontSize: 10, marginTop: 2 }}>{highlightText(item.preview, searchQuery)}</div>
+                                                <div style={{ 
+                                                    color: '#6b7280', 
+                                                    fontSize: 10, 
+                                                    marginTop: 2,
+                                                    overflow: 'hidden',
+                                                    textOverflow: 'ellipsis',
+                                                    whiteSpace: 'nowrap',
+                                                    maxWidth: '100%'
+                                                }}>{highlightText(item.preview, searchQuery)}</div>
                                             )}
                                         </div>
                                     );
@@ -903,23 +928,6 @@ export default function Diary() {
                                 size={200}
                                 intensity={0.85}
                             />
-                            {/* 디버깅 정보 */}
-                            <div style={{ 
-                                position: 'absolute', 
-                                bottom: 10, 
-                                left: 10, 
-                                background: 'rgba(0,0,0,0.7)', 
-                                color: '#fff', 
-                                padding: '8px 12px', 
-                                borderRadius: 6, 
-                                fontSize: 11,
-                                fontFamily: 'monospace',
-                                zIndex: 10
-                            }}>
-                                Color: {emotionOrbColor}
-                                <br/>
-                                Mood: {mood?.emotion || 'none'}
-                            </div>
                         </div>
                         {/* 날짜/감정/진행률: 오른쪽 상단 정렬 */}
                         <div style={{ position: 'absolute', top: 12, right: 12, textAlign: 'right', minWidth: 200 }}>
@@ -1131,7 +1139,7 @@ export default function Diary() {
                             {/* 오로라: 좌상단 */}
                             <div className="aurora-breathe" style={{ 
                                 position: 'absolute', 
-                                top: -40, 
+                                top: -2, 
                                 left: -16, 
                                 zIndex: 1, 
                                 pointerEvents: 'none', 

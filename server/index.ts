@@ -792,12 +792,16 @@ app.get('/api/diary/sessions', authMiddleware, async (req: any, res) => {
       query.type = 'online';
     }
     
+    console.log('📋 세션 목록 조회:', { userId, typeFilter, query: JSON.stringify(query) });
+    
     const sessions = await db
       .collection('diary_sessions')
       .find(query)
       .sort({ lastUpdatedAt: -1 })
       .limit(300)
       .toArray();
+    
+    console.log(`✅ 조회된 세션 수: ${sessions.length}`, sessions.map((s: any) => ({ _id: s._id, type: s.type, title: s.title?.slice(0, 30) })));
     // preview
     const ids = sessions.map((s: any) => s._id);
     const previews = await db.collection('diary_session_messages').aggregate([

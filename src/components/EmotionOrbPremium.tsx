@@ -268,9 +268,9 @@ const LiquidCore = memo(function LiquidCore({ color }: { color: string }) {
       <mesh scale={1.0}>
         <sphereGeometry args={[1, 128, 128]} />
         <MeshTransmissionMaterial
-          transmission={0.98}
-          thickness={0.45}
-          roughness={0.02}
+          transmission={0.75}
+          thickness={0.55}
+          roughness={0.08}
           chromaticAberration={0.02}
           anisotropy={0.15}
           distortion={0.0}
