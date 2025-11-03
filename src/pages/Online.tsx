@@ -11,7 +11,7 @@ import './Online.css';
 export default function Online() {
 
   // 서버 주소: 개발 환경에서는 localhost, 프로덕션에서는 환경변수 사용
-  const serverLink = import.meta.env.VITE_SOCKET_SERVER_URL || "http://192.168.4.16:7780";
+  const serverLink = import.meta.env.VITE_SOCKET_SERVER_URL || "http://192.168.4.8:7780";
 
   // navigate: 페이지를 이동할 때 사용
   const navigate = useNavigate();
