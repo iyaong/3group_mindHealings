@@ -60,14 +60,23 @@ export default function Online() {
   const { user, loading } = useAuth();
 
   useEffect(() => {
-
     // 사용자 정보 불러오는 중이면 대기
     if (loading) return;
 
     // 로그인 안되있으면 로그인 페이지로 이동
     if (!user) navigate("/login");
-
   }, [loading, user])
+
+  // 컴포넌트가 언마운트될 때(페이지를 벗어날 때) 실행
+  useEffect(() => {
+    return () => {
+      // 소켓이 연결되어 있다면 서버에 접속 종료 알림
+      if (socket) {
+        socket.emit("userDisconnect");
+        socket.disconnect();
+      }
+    };
+  }, [socket]);
 
   // ------------------------------------- 대화 상대 찾는 중 -------------------------------------
   // startMatching: 대화 상대 찾는 중...
