@@ -8,6 +8,7 @@ export interface DiarySessionResponse {
   mood?: { emotion: string; score: number; color: string } | null;
   originalMessageCount?: number; // 온라인 채팅의 원본 메시지 개수
   summary?: string; // 대화 요약
+  memo?: string; // 메모
   lastUpdatedAt: string;
   preview?: string;
 }

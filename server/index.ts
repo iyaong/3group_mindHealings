@@ -1113,20 +1113,35 @@ app.post('/api/diary/session/:id/analyze', authMiddleware, async (req: any, res)
   }
 });
 
-// PATCH /api/diary/session/:id { title }
+// PATCH /api/diary/session/:id { title, memo }
 app.patch('/api/diary/session/:id', authMiddleware, async (req: any, res) => {
   try {
     const id = String(req.params.id || '').trim();
     if (!ObjectId.isValid(id)) return res.status(400).json({ message: '유효하지 않은 ID' });
-    const title = String((req.body?.title ?? '')).slice(0, 100);
+    
+    const updateFields: any = { lastUpdatedAt: new Date() };
+    
+    // title이 있으면 업데이트
+    if (req.body?.title !== undefined) {
+      updateFields.title = String(req.body.title).slice(0, 100);
+    }
+    
+    // memo가 있으면 업데이트
+    if (req.body?.memo !== undefined) {
+      updateFields.memo = String(req.body.memo);
+    }
+    
     const client = await getClient();
     const db = client.db(DB_NAME);
     const userId = req.user.sub;
-    const r = await db.collection('diary_sessions').updateOne({ _id: new ObjectId(id), userId }, { $set: { title, lastUpdatedAt: new Date() } });
+    const r = await db.collection('diary_sessions').updateOne(
+      { _id: new ObjectId(id), userId }, 
+      { $set: updateFields }
+    );
     if (!r.matchedCount) return res.status(404).json({ message: '세션 없음' });
     res.json({ ok: true });
   } catch (e) {
-    res.status(500).json({ message: '세션 제목 업데이트 오류' });
+    res.status(500).json({ message: '세션 업데이트 오류' });
   }
 });
 

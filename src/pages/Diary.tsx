@@ -86,6 +86,7 @@ export default function Diary() {
     const [showWelcomeMessage, setShowWelcomeMessage] = useState<boolean>(false); // 환영 메시지 표시 여부
     const [summary, setSummary] = useState<string>(''); // 대화 요약
     const [isSummarizing, setIsSummarizing] = useState<boolean>(false); // 요약 중 상태
+    const [memo, setMemo] = useState<string>(''); // 온라인 채팅 메모
     const bottomRef = useRef<HTMLDivElement | null>(null);
     const textareaRef = useRef<HTMLTextAreaElement | null>(null); // textarea 참조
 
@@ -126,18 +127,6 @@ export default function Diary() {
         const color = mood?.color || '#6366f1';
         if (import.meta.env.DEV) {
             console.log('🎨 AI EmotionOrb color update:', { 
-                color, 
-                emotion: mood?.emotion, 
-                hasColor: !!mood?.color 
-            });
-        }
-        return color;
-    }, [mood?.color, mood?.emotion]); // color와 emotion 둘 다 의존
-
-    const onlineOrbColor = useMemo(() => {
-        const color = mood?.color || '#6366f1';
-        if (import.meta.env.DEV) {
-            console.log('🎨 Online EmotionOrb color update:', { 
                 color, 
                 emotion: mood?.emotion, 
                 hasColor: !!mood?.color 
@@ -286,11 +275,13 @@ export default function Diary() {
             const originalMessageCount = data?.session?.originalMessageCount || 0;
             setCurrentSessionType(sessionType);
             
-            // 요약 로드 (온라인 채팅 세션만)
+            // 요약 및 메모 로드 (온라인 채팅 세션만)
             if (sessionType === 'online') {
                 setSummary(data?.session?.summary || '');
+                setMemo(data?.session?.memo || '');
             } else {
                 setSummary('');
+                setMemo('');
             }
             
             // DEV 환경 디버깅
@@ -563,6 +554,30 @@ export default function Diary() {
     useEffect(() => {
         bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages, aiChatMessages, sending]);
+
+    // 메모 자동 저장 (온라인 채팅 세션, 1초 debounce)
+    useEffect(() => {
+        if (!selected || currentSessionType !== 'online') return;
+        
+        const timer = setTimeout(async () => {
+            try {
+                await fetch(`/api/diary/session/${selected}`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ memo })
+                });
+                
+                if (import.meta.env.DEV) {
+                    console.log('💾 Memo auto-saved:', { sessionId: selected, memoLength: memo.length });
+                }
+            } catch (error) {
+                console.error('메모 저장 실패:', error);
+            }
+        }, 1000); // 1초 대기 후 저장
+        
+        return () => clearTimeout(timer);
+    }, [memo, selected, currentSessionType]);
 
     // useCallback으로 최적화된 send
     const send = useCallback(async () => {
@@ -1530,225 +1545,159 @@ export default function Diary() {
                         </div>
 
                         {/* 중간: AI 요약 섹션 */}
-                        {(summary || isSummarizing) && (
-                            <div style={{ 
-                                flexShrink: 0,
-                                border: '2px solid #10b981', 
-                                borderRadius: 12, 
-                                padding: 16, 
-                                background: 'linear-gradient(135deg, rgba(236,253,245,0.98) 0%, rgba(209,250,229,0.98) 100%)',
-                                boxShadow: '0 2px 8px rgba(16,185,129,0.15)'
-                            }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-                                    <span style={{ fontSize: 20 }}>📝</span>
-                                    <span style={{ fontSize: 16, fontWeight: 700, color: '#065f46' }}>
-                                        대화 요약
+                        <div style={{ 
+                            flexShrink: 0,
+                            border: `2px solid ${mood?.color || '#e5e7eb'}`, 
+                            borderRadius: 16, 
+                            padding: 20, 
+                            background: mood?.color 
+                                ? `linear-gradient(135deg, ${mood.color}15 0%, ${mood.color}25 100%)`
+                                : 'linear-gradient(135deg, rgba(249,250,251,0.98) 0%, rgba(243,244,246,0.98) 100%)',
+                            boxShadow: mood?.color 
+                                ? `0 4px 16px ${mood.color}20`
+                                : '0 4px 16px rgba(0,0,0,0.05)',
+                            transition: 'all 0.3s ease'
+                        }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                                <span style={{ fontSize: 20 }}>📝</span>
+                                <span style={{ 
+                                    fontSize: 16, 
+                                    fontWeight: 700, 
+                                    color: mood?.color || '#374151',
+                                    transition: 'color 0.3s ease'
+                                }}>
+                                    대화 요약
+                                </span>
+                                {isSummarizing && (
+                                    <span style={{ 
+                                        fontSize: 13, 
+                                        color: mood?.color || '#6b7280', 
+                                        marginLeft: 'auto',
+                                        transition: 'color 0.3s ease'
+                                    }}>
+                                        분석 중...
                                     </span>
-                                    {isSummarizing && (
-                                        <span style={{ fontSize: 13, color: '#059669', marginLeft: 'auto' }}>
-                                            분석 중...
-                                        </span>
-                                    )}
-                                </div>
-                                {isSummarizing ? (
-                                    <div style={{ 
-                                        display: 'flex', 
-                                        alignItems: 'center', 
-                                        gap: 12,
-                                        padding: '20px 0',
-                                        justifyContent: 'center'
-                                    }}>
-                                        <div className="loading-spinner" style={{
-                                            width: 24,
-                                            height: 24,
-                                            border: '3px solid #d1fae5',
-                                            borderTop: '3px solid #10b981',
-                                            borderRadius: '50%',
-                                            animation: 'spin 1s linear infinite'
-                                        }} />
-                                        <span style={{ fontSize: 14, color: '#065f46' }}>
-                                            AI가 대화 내용을 분석하고 있습니다...
-                                        </span>
-                                    </div>
-                                ) : (
-                                    <div style={{ 
-                                        fontSize: 14, 
-                                        lineHeight: 1.8, 
-                                        color: '#047857',
-                                        whiteSpace: 'pre-wrap',
-                                        background: 'rgba(255,255,255,0.5)',
-                                        padding: 12,
-                                        borderRadius: 8,
-                                        border: '1px solid #a7f3d0'
-                                    }}>
-                                        {summary}
-                                    </div>
                                 )}
                             </div>
-                        )}
+                            {isSummarizing ? (
+                                <div style={{ 
+                                    display: 'flex', 
+                                    alignItems: 'center', 
+                                    gap: 12,
+                                    padding: '20px 0',
+                                    justifyContent: 'center'
+                                }}>
+                                    <div className="loading-spinner" style={{
+                                        width: 24,
+                                        height: 24,
+                                        border: `3px solid ${mood?.color || '#e5e7eb'}40`,
+                                        borderTop: `3px solid ${mood?.color || '#9ca3af'}`,
+                                        borderRadius: '50%',
+                                        animation: 'spin 1s linear infinite'
+                                    }} />
+                                    <span style={{ 
+                                        fontSize: 14, 
+                                        color: mood?.color || '#374151',
+                                        transition: 'color 0.3s ease'
+                                    }}>
+                                        AI가 대화 내용을 분석하고 있습니다...
+                                    </span>
+                                </div>
+                            ) : summary ? (
+                                <div style={{ 
+                                    fontSize: 14, 
+                                    lineHeight: 1.8, 
+                                    color: '#374151',
+                                    whiteSpace: 'pre-wrap',
+                                    background: 'rgba(255,255,255,0.7)',
+                                    padding: 12,
+                                    borderRadius: 8,
+                                    border: `1px solid ${mood?.color || '#e5e7eb'}40`,
+                                    transition: 'border-color 0.3s ease'
+                                }}>
+                                    {summary}
+                                </div>
+                            ) : (
+                                <div style={{ 
+                                    fontSize: 14, 
+                                    lineHeight: 1.8, 
+                                    color: '#9ca3af',
+                                    textAlign: 'center',
+                                    padding: '20px 0'
+                                }}>
+                                    온라인 채팅을 저장하면 AI가 대화를 요약해드립니다.
+                                </div>
+                            )}
+                        </div>
 
-                        {/* 하단: AI와 대화 */}
+                        {/* 하단: 메모장 */}
                         <div style={{ 
                             flex: '1 1 auto', 
                             minHeight: 0,
-                            border: '2px solid #6366f1', 
+                            border: '2px solid #9ca3af', 
                             borderRadius: 16, 
                             padding: 20, 
-                            background: 'linear-gradient(135deg, rgba(255,255,255,0.98) 0%, rgba(238,242,255,0.98) 100%)', 
+                            background: 'linear-gradient(135deg, rgba(255,255,255,0.98) 0%, rgba(249,250,251,0.98) 100%)', 
                             position: 'relative',
                             boxSizing: 'border-box',
-                            boxShadow: '0 4px 16px rgba(99,102,241,0.15)',
+                            boxShadow: '0 4px 16px rgba(156,163,175,0.15)',
                             display: 'flex',
                             flexDirection: 'column'
                         }}>
-                            {/* 오로라: 좌상단 */}
-                            <div style={{ 
-                                position: 'absolute', 
-                                top: -10, 
-                                left: 0, 
-                                zIndex: 20, 
-                                pointerEvents: 'none', 
-                                width: 120, 
-                                height: 120, 
-                                display: 'flex', 
-                                alignItems: 'center', 
-                                justifyContent: 'center' 
-                            }}>
-                                <div className="aurora-breathe" style={{ width: 100, height: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', transformOrigin: 'center center' }}>
-                                    <EmotionOrbPremium color={onlineOrbColor} size={100} intensity={0.7} />
-                                </div>
-                            </div>
                             
-                            <div style={{ marginBottom: 12, paddingTop: 12, flexShrink: 0, textAlign: 'right' }}>
-                                <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 6, color: '#374151', display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'flex-end' }}>
-                                    <span>🤖</span>
-                                    <span>AI와 대화하기</span>
+                            <div style={{ marginBottom: 12, flexShrink: 0 }}>
+                                <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 6, color: '#374151', display: 'flex', alignItems: 'center', gap: 8 }}>
+                                    <span>📝</span>
+                                    <span>메모</span>
                                 </div>
                                 <div style={{ fontSize: 13, color: '#6b7280' }}>
-                                    이 대화에 대해 더 이야기 나눠보세요
+                                    이 대화에 대한 개인적인 생각이나 메모를 남겨보세요
                                 </div>
                             </div>
                             
-                            {/* AI 대화 메시지 영역 */}
-                            <div style={{ 
-                                flex: 1,
-                                overflowY: 'auto',
-                                border: '1px solid #e5e7eb',
-                                borderRadius: 12,
-                                padding: 12,
-                                marginBottom: 12,
-                                background: 'rgba(255,255,255,0.5)',
-                                minHeight: 0,
-                                position: 'relative'
-                            }}>
-                                {/* 환영 메시지 오버레이 */}
-                                {showWelcomeMessage && aiChatMessages.length === 0 && (
-                                    <div style={{
-                                        position: 'absolute',
-                                        top: 0,
-                                        left: 0,
-                                        right: 0,
-                                        bottom: 0,
-                                        display: 'flex',
-                                        flexDirection: 'column',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        background: 'rgba(0, 0, 0, 0.4)',
-                                        backdropFilter: 'blur(8px)',
-                                        WebkitBackdropFilter: 'blur(8px)',
-                                        borderRadius: 12,
-                                        zIndex: 10,
-                                        pointerEvents: 'none'
-                                    }}>
-                                        <div style={{
-                                            fontSize: 24,
-                                            fontWeight: 700,
-                                            color: '#ffffff',
-                                            textAlign: 'center',
-                                            lineHeight: 1.6,
-                                            textShadow: '0 2px 8px rgba(0,0,0,0.3)',
-                                            padding: '0 20px'
-                                        }}>
-                                            당신의 감정에 공명하겠습니다<br />
-                                            당신의 이야기를 들려주세요
-                                        </div>
-                                    </div>
-                                )}
-                                
-                                {loadingDiary ? (
-                                    <ChatLoadingSkeleton />
-                                ) : aiChatMessages.length > 0 ? (
-                                    aiChatMessages.map(Bubble)
-                                ) : (
-                                    <div style={{ 
-                                        textAlign: 'center', 
-                                        color: '#9ca3af', 
-                                        padding: '40px 20px',
-                                        fontSize: 14
-                                    }}>
-                                        💭 온라인 채팅에 대해 AI와 대화를 시작해보세요
-                                    </div>
-                                )}
-                                <div ref={bottomRef} />
-                            </div>
+                            {/* 메모 입력 영역 */}
+                            <textarea
+                                value={memo}
+                                onChange={(e) => setMemo(e.target.value)}
+                                placeholder="온라인 채팅에 대한 생각이나 느낌을 자유롭게 작성해보세요...&#10;&#10;예시:&#10;- 오늘 대화에서 느낀 감정&#10;- 기억하고 싶은 부분&#10;- 나중에 다시 보고 싶은 내용"
+                                style={{ 
+                                    flex: 1,
+                                    padding: 16,
+                                    border: '2px solid #e5e7eb',
+                                    borderRadius: 12,
+                                    resize: 'none',
+                                    background: 'rgba(255,255,255,0.8)',
+                                    fontSize: 14,
+                                    lineHeight: 1.6,
+                                    fontFamily: 'inherit',
+                                    outline: 'none',
+                                    transition: 'all 0.2s ease',
+                                    minHeight: 0
+                                }}
+                                onFocus={(e) => {
+                                    e.currentTarget.style.borderColor = '#9ca3af';
+                                    e.currentTarget.style.boxShadow = '0 0 0 3px rgba(156,163,175,0.1)';
+                                    e.currentTarget.style.background = '#ffffff';
+                                }}
+                                onBlur={(e) => {
+                                    e.currentTarget.style.borderColor = '#e5e7eb';
+                                    e.currentTarget.style.boxShadow = 'none';
+                                    e.currentTarget.style.background = 'rgba(255,255,255,0.8)';
+                                }}
+                            />
                             
-                            <form onSubmit={(e) => { e.preventDefault(); void send(); }} style={{ display: 'flex', alignItems: 'flex-end', gap: 10, flexShrink: 0 }}>
-                                <textarea
-                                    ref={textareaRef}
-                                    value={input}
-                                    onChange={(e) => setInput(e.target.value)}
-                                    onKeyDown={onKeyDown}
-                                    placeholder="온라인 대화에 대해 AI와 이야기해보세요..."
-                                    rows={3}
-                                    style={{ 
-                                        flex: 1, 
-                                        padding: 12, 
-                                        border: '2px solid #e5e7eb', 
-                                        borderRadius: 10, 
-                                        resize: 'none', 
-                                        background: '#fff',
-                                        fontSize: 14,
-                                        transition: 'all 0.2s ease',
-                                        outline: 'none'
-                                    }}
-                                    onFocus={(e) => {
-                                        e.currentTarget.style.borderColor = '#6366f1';
-                                        e.currentTarget.style.boxShadow = '0 0 0 3px rgba(99,102,241,0.1)';
-                                    }}
-                                    onBlur={(e) => {
-                                        e.currentTarget.style.borderColor = '#e5e7eb';
-                                        e.currentTarget.style.boxShadow = 'none';
-                                    }}
-                                />
-                                <button 
-                                    type="submit" 
-                                    disabled={sending || !input.trim()} 
-                                    style={{ 
-                                        padding: '12px 20px', 
-                                        borderRadius: 10, 
-                                        border: 'none', 
-                                        background: sending || !input.trim() ? '#d1d5db' : 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)', 
-                                        color: '#fff', 
-                                        cursor: sending || !input.trim() ? 'not-allowed' : 'pointer',
-                                        fontWeight: 600,
-                                        fontSize: 14,
-                                        transition: 'all 0.2s ease',
-                                        boxShadow: sending || !input.trim() ? 'none' : '0 2px 8px rgba(99,102,241,0.3)'
-                                    }}
-                                    onMouseEnter={(e) => {
-                                        if (!sending && input.trim()) {
-                                            e.currentTarget.style.transform = 'translateY(-1px)';
-                                            e.currentTarget.style.boxShadow = '0 4px 12px rgba(99,102,241,0.4)';
-                                        }
-                                    }}
-                                    onMouseLeave={(e) => {
-                                        e.currentTarget.style.transform = 'translateY(0)';
-                                        e.currentTarget.style.boxShadow = sending || !input.trim() ? 'none' : '0 2px 8px rgba(99,102,241,0.3)';
-                                    }}
-                                >
-                                    {sending ? '전송중…' : '전송'}
-                                </button>
-                            </form>
+                            <div style={{ 
+                                display: 'flex', 
+                                justifyContent: 'space-between', 
+                                alignItems: 'center', 
+                                marginTop: 12,
+                                fontSize: 12,
+                                color: '#9ca3af',
+                                flexShrink: 0
+                            }}>
+                                <span>{memo.length}자</span>
+                                <span>💡 메모는 자동으로 저장됩니다</span>
+                            </div>
                         </div>
                     </div>
                 )}
