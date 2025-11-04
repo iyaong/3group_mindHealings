@@ -87,6 +87,7 @@ export default function Diary() {
     const [summary, setSummary] = useState<string>(''); // 대화 요약
     const [isSummarizing, setIsSummarizing] = useState<boolean>(false); // 요약 중 상태
     const [memo, setMemo] = useState<string>(''); // 온라인 채팅 메모
+    const hasSummarizedRef = useRef<boolean>(false); // 이미 요약 실행했는지 플래그 (ref로 변경)
     const bottomRef = useRef<HTMLDivElement | null>(null);
     const textareaRef = useRef<HTMLTextAreaElement | null>(null); // textarea 참조
 
@@ -277,8 +278,18 @@ export default function Diary() {
             
             // 요약 및 메모 로드 (온라인 채팅 세션만)
             if (sessionType === 'online') {
-                setSummary(data?.session?.summary || '');
-                setMemo(data?.session?.memo || '');
+                const loadedSummary = data?.session?.summary || '';
+                const loadedMemo = data?.session?.memo || '';
+                
+                if (import.meta.env.DEV) {
+                    console.log('📄 Loading summary and memo:', { 
+                        summary: loadedSummary ? loadedSummary.substring(0, 50) + '...' : '(empty)',
+                        memo: loadedMemo ? loadedMemo.substring(0, 30) + '...' : '(empty)'
+                    });
+                }
+                
+                setSummary(loadedSummary);
+                setMemo(loadedMemo);
             } else {
                 setSummary('');
                 setMemo('');
@@ -443,12 +454,13 @@ export default function Diary() {
             // pending 세션 ID 설정 (onlineList 업데이트 후 자동 선택됨)
             setPendingOnlineSessionId(state.sessionId);
             
-            // 자동 요약 플래그가 있으면 요약 시작
-            if (state.autoSummarize && state.sessionId) {
+            // 자동 요약 플래그가 있고 아직 요약하지 않았으면 요약 시작
+            if (state.autoSummarize && state.sessionId && !hasSummarizedRef.current) {
+                hasSummarizedRef.current = true; // 중복 실행 방지
                 // 세션 로딩 후 요약 실행 (약간의 지연)
                 setTimeout(() => {
                     void summarizeConversation(state.sessionId!);
-                }, 1000);
+                }, 1500);
             }
             
             // 목록 새로고침
@@ -716,7 +728,10 @@ export default function Diary() {
 
     // 대화 요약 함수
     const summarizeConversation = async (sessionId: string) => {
-        if (isSummarizing) return;
+        if (isSummarizing) {
+            if (import.meta.env.DEV) console.log('⚠️ Already summarizing, skipping...');
+            return;
+        }
         
         setIsSummarizing(true);
         showToast({ 
@@ -743,10 +758,15 @@ export default function Diary() {
             
             const data = await res.json();
             if (import.meta.env.DEV) {
-                console.log('📝 Summary:', data?.summary);
+                console.log('📝 Summary received:', data?.summary);
             }
             
-            setSummary(data?.summary || '');
+            // 요약 결과 저장
+            const summaryText = data?.summary || '';
+            setSummary(summaryText);
+            
+            // 세션 목록 새로고침 (summary가 포함된 최신 데이터 가져오기)
+            await refreshList();
             
             showToast({ 
                 message: '✅ 대화 요약이 완료되었습니다!', 
@@ -1303,8 +1323,26 @@ export default function Diary() {
                     // AI 대화 탭 - 기존 UI 유지
                     <div style={{ ...bgStyle, border: '1px solid #e5e7eb', borderRadius: 12, minHeight: '70vh', padding: 12, position: 'relative', boxSizing: 'border-box' }}>
                         {/* 감정 오브: 채팅창 왼쪽 상단 고정, 크게 */}
-                        <div style={{ position: 'absolute', top: -10, left: -10, zIndex: 20, pointerEvents: 'none', width: 200, height: 200, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                            <div className="aurora-breathe" style={{ width: 200, height: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', transformOrigin: 'center center' }}>
+                        <div style={{ 
+                            position: 'absolute', 
+                            top: -10, 
+                            left: -10, 
+                            zIndex: 20, 
+                            pointerEvents: 'none', 
+                            width: 200, 
+                            height: 200, 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            justifyContent: 'center'
+                        }}>
+                            <div className="aurora-breathe" style={{ 
+                                width: 200, 
+                                height: 200, 
+                                display: 'flex', 
+                                alignItems: 'center', 
+                                justifyContent: 'center', 
+                                transformOrigin: 'center center'
+                            }}>
                                 <EmotionOrbPremium 
                                     color={emotionOrbColor} 
                                     size={200}
@@ -1315,133 +1353,157 @@ export default function Diary() {
                                 />
                             </div>
                         </div>
-                        {/* 날짜/감정/진행률: 오른쪽 상단 정렬 */}
-                        <div style={{ position: 'absolute', top: 12, right: 12, textAlign: 'right', minWidth: 200 }}>
-                            <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>{selectedDate}</div>
-                            {mood?.emotion ? (
-                                <div style={{ 
-                                    fontSize: 13, 
-                                    color: '#374151', 
-                                    background: 'rgba(255,255,255,0.9)',
-                                    padding: '6px 12px',
-                                    borderRadius: 8,
-                                    border: '2px solid #10b981',
-                                    fontWeight: 600,
-                                    display: 'inline-block'
-                                }}>
-                                    ✓ 감정: {mood.emotion}
-                                </div>
-                            ) : messageCount > 0 ? (
-                                <div>
-                                    <div style={{ 
-                                        fontSize: 11, 
-                                        color: '#6b7280', 
-                                        marginBottom: 6,
-                                        fontWeight: 600 
-                                    }}>
-                                        진행률: {Math.min(100, Math.round((messageCount / MIN_REQUIRED_MESSAGES) * 100))}%
-                                    </div>
-                                    {/* 진행률 바 */}
-                                    <div style={{ 
-                                        width: '100%', 
-                                        height: 8, 
-                                        background: '#e5e7eb', 
-                                        borderRadius: 4,
-                                        overflow: 'hidden',
-                                        boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.1)'
-                                    }}>
-                                        <div style={{ 
-                                            width: `${Math.min(100, (messageCount / MIN_REQUIRED_MESSAGES) * 100)}%`, 
-                                            height: '100%', 
-                                            background: messageCount >= MIN_REQUIRED_MESSAGES 
-                                                ? 'linear-gradient(90deg, #10b981 0%, #059669 100%)' 
-                                                : 'linear-gradient(90deg, #6366f1 0%, #8b5cf6 100%)',
-                                            transition: 'width 0.5s ease',
-                                            borderRadius: 4
-                                        }} />
-                                    </div>
-                                    <div style={{ fontSize: 10, color: '#9ca3af', marginTop: 4 }}>
-                                        {messageCount}/{MIN_REQUIRED_MESSAGES} 사용자 메시지
-                                    </div>
-                                </div>
-                            ) : null}
+                        
+                        {/* 날짜 표시 (우측 상단) */}
+                        <div style={{ position: 'absolute', top: 12, right: 12, fontSize: 18, fontWeight: 700, color: '#1f2937', textShadow: '0 1px 3px rgba(255,255,255,0.8)' }}>
+                            {selectedDate}
                         </div>
-
-                        {/* 분석 전 안내 배너 + 수동 분석 버튼 */}
-                        {!mood && messageCount > 0 && (
-                            <div style={{ 
-                                position: 'absolute', 
-                                top: 100, 
-                                left: '50%', 
-                                transform: 'translateX(-50%)', 
-                                background: messageCount >= MIN_REQUIRED_MESSAGES 
-                                    ? 'linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%)'
-                                    : 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)',
-                                padding: '14px 24px',
-                                borderRadius: 14,
-                                boxShadow: '0 6px 16px rgba(0, 0, 0, 0.12)',
-                                zIndex: 2,
-                                fontSize: 13,
-                                fontWeight: 600,
-                                color: messageCount >= MIN_REQUIRED_MESSAGES ? '#065f46' : '#92400e',
+                        
+                        {/* 감정 진단 섹션 (중앙 상단, 가로 배치) */}
+                        <div style={{
+                            position: 'absolute',
+                            top: 12,
+                            left: '50%',
+                            transform: 'translateX(-50%)',
+                            background: 'transparent',
+                            borderRadius: 16,
+                            padding: '14px 24px',
+                            border: '2px solid #000',
+                            minWidth: 500,
+                            maxWidth: '85%',
+                            zIndex: 15,
+                            transition: 'all 0.3s ease',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            gap: 20
+                        }}>
+                            {/* 좌측: 아이콘 + 상태 정보 */}
+                            <div style={{
                                 display: 'flex',
                                 alignItems: 'center',
                                 gap: 12,
-                                border: messageCount >= MIN_REQUIRED_MESSAGES 
-                                    ? '2px solid #10b981'
-                                    : '2px solid #fbbf24',
-                                maxWidth: '90%'
+                                flex: 1
                             }}>
-                                <span style={{ fontSize: 18 }}>
-                                    {messageCount >= MIN_REQUIRED_MESSAGES ? '✨' : '💭'}
+                                <span style={{ fontSize: 28, filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))' }}>
+                                    {mood ? '✨' : isAnalyzing ? '🔄' : '📊'}
                                 </span>
                                 <div style={{ flex: 1 }}>
-                                    {messageCount >= MIN_REQUIRED_MESSAGES ? (
-                                        <span>충분한 대화가 쌓였어요! 감정을 분석할 수 있습니다.</span>
-                                    ) : (
-                                        <span>
-                                            권장: {MIN_REQUIRED_MESSAGES - messageCount}개 더 대화 | 
-                                            {messageCount >= 2 ? ' 지금도 분석 가능' : ' 최소 1턴 필요'}
-                                        </span>
+                                    <div style={{ 
+                                        fontWeight: 700, 
+                                        fontSize: 16, 
+                                        marginBottom: 4, 
+                                        color: '#000',
+                                        textShadow: '0 1px 2px rgba(255,255,255,0.8)'
+                                    }}>
+                                        {mood 
+                                            ? '진단 완료' 
+                                            : isAnalyzing 
+                                                ? '진단 중...' 
+                                                : `진단 전 (${messageCount}/${MIN_REQUIRED_MESSAGES})`
+                                        }
+                                    </div>
+                                    {mood && (
+                                        <div style={{ 
+                                            fontSize: 14, 
+                                            color: '#000',
+                                            textShadow: '0 1px 2px rgba(255,255,255,0.8)'
+                                        }}>
+                                            감정: <strong>{mood.emotion}</strong> ({Math.round(mood.score * 100)}%)
+                                        </div>
+                                    )}
+                                    {!mood && !isAnalyzing && messageCount >= 2 && (
+                                        <div style={{ 
+                                            fontSize: 13, 
+                                            color: '#000',
+                                            textShadow: '0 1px 2px rgba(255,255,255,0.8)'
+                                        }}>
+                                            {messageCount >= MIN_REQUIRED_MESSAGES 
+                                                ? '감정 분석을 시작할 수 있습니다' 
+                                                : `${MIN_REQUIRED_MESSAGES - messageCount}번 더 대화하면 분석 가능합니다`
+                                            }
+                                        </div>
                                     )}
                                 </div>
-                                {messageCount >= 2 && (
-                                    <button
-                                        onClick={manualAnalyze}
-                                        disabled={isAnalyzing}
-                                        style={{
-                                            padding: '8px 16px',
-                                            borderRadius: 8,
-                                            border: 'none',
-                                            background: isAnalyzing 
-                                                ? '#9ca3af'
-                                                : messageCount >= MIN_REQUIRED_MESSAGES
-                                                    ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)'
-                                                    : 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
-                                            color: '#fff',
-                                            cursor: isAnalyzing ? 'not-allowed' : 'pointer',
-                                            fontWeight: 700,
-                                            fontSize: 12,
-                                            boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
-                                            transition: 'all 0.2s ease',
-                                            whiteSpace: 'nowrap'
-                                        }}
-                                        onMouseEnter={(e) => {
-                                            if (!isAnalyzing) {
-                                                e.currentTarget.style.transform = 'translateY(-1px)';
-                                                e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.2)';
-                                            }
-                                        }}
-                                        onMouseLeave={(e) => {
-                                            e.currentTarget.style.transform = 'translateY(0)';
-                                            e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.15)';
-                                        }}
-                                    >
-                                        {isAnalyzing ? '분석중...' : '🎨 지금 분석하기'}
-                                    </button>
-                                )}
                             </div>
-                        )}
+                            
+                            {/* 중앙: 컬러 코드 (진단 완료 시) */}
+                            {mood && (
+                                <div style={{
+                                    padding: '10px 16px',
+                                    borderRadius: 10,
+                                    background: 'rgba(255, 255, 255, 0.85)',
+                                    backdropFilter: 'blur(8px)',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: 10,
+                                    border: '2px solid rgba(255,255,255,0.5)',
+                                    boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+                                }}>
+                                    <span style={{ 
+                                        fontWeight: 600, 
+                                        fontSize: 13,
+                                        color: '#374151'
+                                    }}>
+                                        컬러 코드:
+                                    </span>
+                                    <div style={{
+                                        width: 28,
+                                        height: 28,
+                                        borderRadius: 6,
+                                        background: mood.color,
+                                        border: '2px solid rgba(0,0,0,0.15)',
+                                        boxShadow: '0 2px 4px rgba(0,0,0,0.15)'
+                                    }} />
+                                    <code style={{
+                                        padding: '4px 10px',
+                                        borderRadius: 6,
+                                        background: 'rgba(0,0,0,0.06)',
+                                        fontFamily: 'monospace',
+                                        fontSize: 13,
+                                        fontWeight: 600,
+                                        color: '#1f2937',
+                                        border: '1px solid rgba(0,0,0,0.08)'
+                                    }}>
+                                        {mood.color}
+                                    </code>
+                                </div>
+                            )}
+                            
+                            {/* 우측: 진단하기 버튼 */}
+                            {!mood && messageCount >= 2 && !isAnalyzing && (
+                                <button
+                                    onClick={manualAnalyze}
+                                    style={{
+                                        padding: '10px 20px',
+                                        borderRadius: 10,
+                                        border: '2px solid rgba(255,255,255,0.4)',
+                                        background: messageCount >= MIN_REQUIRED_MESSAGES
+                                            ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)'
+                                            : 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
+                                        color: '#fff',
+                                        cursor: 'pointer',
+                                        fontWeight: 700,
+                                        fontSize: 14,
+                                        boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
+                                        transition: 'all 0.2s ease',
+                                        whiteSpace: 'nowrap',
+                                        flexShrink: 0,
+                                        textShadow: '0 1px 2px rgba(0,0,0,0.2)'
+                                    }}
+                                    onMouseEnter={(e) => {
+                                        e.currentTarget.style.transform = 'translateY(-1px)';
+                                        e.currentTarget.style.boxShadow = '0 6px 16px rgba(0,0,0,0.25)';
+                                    }}
+                                    onMouseLeave={(e) => {
+                                        e.currentTarget.style.transform = 'translateY(0)';
+                                        e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.2)';
+                                    }}
+                                >
+                                    🧠 감정 진단
+                                </button>
+                            )}
+                        </div>
 
                         <div className="diary-chat-area" style={{ border: '1px solid #e5e7eb', borderRadius: 12, height: '55vh', maxHeight: '55vh', padding: 12, overflowY: 'auto', background: 'rgba(255,255,255,0.75)', width: 'min(100%, 1200px)', margin: '96px auto 0', boxSizing: 'border-box', position: 'relative' }}>
                             {/* 환영 메시지 오버레이 */}

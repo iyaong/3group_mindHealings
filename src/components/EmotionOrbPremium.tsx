@@ -272,11 +272,18 @@ const LiquidCore = memo(function LiquidCore({ color }: { color: string }) {
     }
   }, [colors]);
 
+  // Orb 마운트 확인 로그
+  useEffect(() => {
+    if (import.meta.env.DEV) {
+      console.log('🔮 Orb component mounted with colors:', colors);
+    }
+  }, []);
+
   return (
     <group ref={groupRef}>
       {/* Inner glow layer */}
       <mesh ref={glowRef} scale={0.86}>
-        <sphereGeometry args={[1, 64, 64]} />
+        <sphereGeometry args={[1, 32, 32]} />
         <meshBasicMaterial
           color={colors.color2}
           opacity={0.75}
@@ -288,7 +295,7 @@ const LiquidCore = memo(function LiquidCore({ color }: { color: string }) {
 
       {/* Main liquid gradient core */}
       <mesh ref={coreRef} scale={0.94}>
-        <sphereGeometry args={[1, 128, 128]} />
+        <sphereGeometry args={[1, 64, 64]} />
         <shaderMaterial
           ref={materialRef}
           vertexShader={liquidGradientVertexShader}
@@ -308,7 +315,7 @@ const LiquidCore = memo(function LiquidCore({ color }: { color: string }) {
 
       {/* Premium glass shell with transmission (minitap.ai style) */}
       <mesh scale={1.0}>
-        <sphereGeometry args={[1, 128, 128]} />
+        <sphereGeometry args={[1, 64, 64]} />
         <MeshTransmissionMaterial
           transmission={0.75}
           thickness={0.55}
@@ -341,7 +348,7 @@ const LiquidCore = memo(function LiquidCore({ color }: { color: string }) {
 
       {/* Subtle color halo */}
       <mesh ref={haloRef} scale={1.09}>
-        <sphereGeometry args={[1, 48, 48]} />
+        <sphereGeometry args={[1, 32, 32]} />
         <meshBasicMaterial
           transparent
           opacity={0.05}
@@ -414,15 +421,18 @@ const EmotionOrbPremium = memo(function EmotionOrbPremium({
   // 진단 중일 때는 순환 색상, 아니면 지정된 색상
   const displayColor = analyzing ? EMOTION_COLORS[cyclingColorIndex] : color;
   
-  // 개발 환경에서만 디버깅 로그
-  if (import.meta.env.DEV) {
-    console.log('🌟 EmotionOrbPremium:', { 
-      color,
-      displayColor,
-      analyzing,
-      cyclingIndex: analyzing ? cyclingColorIndex : '-'
-    });
-  }
+  // 컴포넌트 마운트 시 한 번만 로그
+  useEffect(() => {
+    if (import.meta.env.DEV) {
+      console.log('🌟 EmotionOrbPremium 마운트:', { 
+        color,
+        displayColor,
+        analyzing,
+        size,
+        intensity
+      });
+    }
+  }, []); // 빈 의존성 배열 = 마운트 시 한 번만
   
   return (
     <div
@@ -457,24 +467,58 @@ const EmotionOrbPremium = memo(function EmotionOrbPremium({
         }}
       >
         <Canvas
-          dpr={[1, 2]}
+          dpr={[1, 1.5]} // dpr을 낮춰서 리소스 절약
+          frameloop="always" // 항상 렌더링
           camera={{ position: [0, 0, 3.8], fov: 38 }}
           gl={{ 
             antialias: true, 
             alpha: true, 
-            powerPreference: 'high-performance',
+            powerPreference: 'default',
             toneMapping: THREE.ACESFilmicToneMapping,
             toneMappingExposure: 1.0,
             failIfMajorPerformanceCaveat: false,
-            preserveDrawingBuffer: true,
+            preserveDrawingBuffer: false, // true에서 false로 변경 (메모리 절약)
+            stencil: false,
+            depth: true, // depth 버퍼 활성화
           }}
-          style={{ display: 'block' }}
-          onCreated={({ gl }) => {
-            // WebGL 컨텍스트 손실 확장 지원 확인 (경고 방지)
-            const context = gl.getContext() as WebGLRenderingContext;
-            const loseContext = context?.getExtension('WEBGL_lose_context');
-            if (!loseContext && import.meta.env.DEV) {
-              console.log('ℹ️ WEBGL_lose_context 확장이 지원되지 않습니다 (정상 동작)');
+          style={{ 
+            display: 'block',
+            touchAction: 'none', // 터치 이벤트 비활성화
+          }}
+          onCreated={({ gl, scene }) => {
+            // WebGL 설정 최적화
+            gl.setClearColor(0x000000, 0);
+            scene.background = null; // 배경 투명
+            
+            // 컨텍스트 손실 방지
+            const canvas = gl.domElement;
+            
+            const handleContextLost = (event: Event) => {
+              event.preventDefault();
+              console.warn('⚠️ WebGL context lost, preventing default...');
+              
+              // 컨텍스트 복구 시도
+              setTimeout(() => {
+                const gl = canvas.getContext('webgl2', { 
+                  preserveDrawingBuffer: false,
+                  antialias: true,
+                  alpha: true
+                });
+                if (gl) {
+                  console.log('✅ WebGL context manually restored');
+                }
+              }, 100);
+            };
+            
+            const handleContextRestored = () => {
+              console.log('✅ WebGL context restored');
+            };
+            
+            canvas.addEventListener('webglcontextlost', handleContextLost, false);
+            canvas.addEventListener('webglcontextrestored', handleContextRestored, false);
+            
+            if (import.meta.env.DEV) {
+              console.log('✅ Canvas created successfully');
             }
           }}
         >

@@ -950,7 +950,26 @@ app.get('/api/diary/session/:id', authMiddleware, async (req: any, res) => {
       );
     }
     
-    res.json({ ok: true, session: { id: String(session._id), date: session.date, title: session.title || '', type: session.type || 'ai', mood: session.mood || null, originalMessageCount: originalCount, lastUpdatedAt: session.lastUpdatedAt }, messages: msgs.map(m => ({ id: String(m._id), role: m.role, content: m.content, createdAt: m.createdAt })) });
+    res.json({ 
+      ok: true, 
+      session: { 
+        id: String(session._id), 
+        date: session.date, 
+        title: session.title || '', 
+        type: session.type || 'ai', 
+        mood: session.mood || null, 
+        originalMessageCount: originalCount, 
+        summary: session.summary || '',
+        memo: session.memo || '',
+        lastUpdatedAt: session.lastUpdatedAt 
+      }, 
+      messages: msgs.map(m => ({ 
+        id: String(m._id), 
+        role: m.role, 
+        content: m.content, 
+        createdAt: m.createdAt 
+      })) 
+    });
   } catch (e) {
     res.status(500).json({ message: '세션 조회 오류' });
   }
