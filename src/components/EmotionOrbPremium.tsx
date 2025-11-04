@@ -380,33 +380,6 @@ const EmotionOrbPremium = memo(function EmotionOrbPremium({
 }: EmotionOrbPremiumProps) {
   const [cyclingColorIndex, setCyclingColorIndex] = useState(0);
   
-  // WebGL 컨텍스트 복구 핸들러
-  useEffect(() => {
-    const canvas = document.querySelector('.emotion-orb-premium-container canvas');
-    if (!canvas) return;
-    
-    const handleContextLost = (event: Event) => {
-      event.preventDefault();
-      if (import.meta.env.DEV) {
-        console.warn('⚠️ WebGL 컨텍스트 손실 감지, 복구 시도 중...');
-      }
-    };
-    
-    const handleContextRestored = () => {
-      if (import.meta.env.DEV) {
-        console.log('✅ WebGL 컨텍스트 복구 완료');
-      }
-    };
-    
-    canvas.addEventListener('webglcontextlost', handleContextLost);
-    canvas.addEventListener('webglcontextrestored', handleContextRestored);
-    
-    return () => {
-      canvas.removeEventListener('webglcontextlost', handleContextLost);
-      canvas.removeEventListener('webglcontextrestored', handleContextRestored);
-    };
-  }, []);
-  
   // 진단 중일 때 색상 순환
   useEffect(() => {
     if (!analyzing) return;
@@ -421,9 +394,6 @@ const EmotionOrbPremium = memo(function EmotionOrbPremium({
   // 진단 중일 때는 순환 색상, 아니면 지정된 색상
   const displayColor = analyzing ? EMOTION_COLORS[cyclingColorIndex] : color;
   
-  // Canvas remount key (네트워크 환경 안정성)
-  const [canvasKey, setCanvasKey] = useState(0);
-  
   // 컴포넌트 마운트 시 한 번만 로그
   useEffect(() => {
     if (import.meta.env.DEV) {
@@ -435,13 +405,6 @@ const EmotionOrbPremium = memo(function EmotionOrbPremium({
         intensity
       });
     }
-    
-    // Canvas가 마운트되지 않을 경우 대비 (네트워크 환경)
-    const timeout = setTimeout(() => {
-      setCanvasKey(prev => prev + 1);
-    }, 100);
-    
-    return () => clearTimeout(timeout);
   }, []); // 빈 의존성 배열 = 마운트 시 한 번만
   
   return (
@@ -477,18 +440,17 @@ const EmotionOrbPremium = memo(function EmotionOrbPremium({
         }}
       >
         <Canvas
-          key={canvasKey}
           dpr={[1, 1.5]} // dpr을 낮춰서 리소스 절약
-          frameloop="always" // 항상 렌더링 (네트워크 환경 안정성)
+          frameloop="always" // 항상 렌더링
           camera={{ position: [0, 0, 3.8], fov: 38 }}
           gl={{ 
             antialias: true, 
             alpha: true, 
-            powerPreference: 'default', // 네트워크 환경 호환성
+            powerPreference: 'default',
             toneMapping: THREE.ACESFilmicToneMapping,
             toneMappingExposure: 1.0,
             failIfMajorPerformanceCaveat: false,
-            preserveDrawingBuffer: false,
+            preserveDrawingBuffer: true, // WebGL 컨텍스트 유지
             stencil: false,
             depth: true,
           }}

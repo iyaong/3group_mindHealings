@@ -569,7 +569,7 @@ export default function Chat() {
             <div 
                 className="chat-animated-bg" 
                 style={emotionColor ? {
-                    background: generateGradientFromColor(emotionColor),
+                    backgroundImage: generateGradientFromColor(emotionColor),
                     backgroundSize: '400% 400%'
                 } : undefined}
             />
