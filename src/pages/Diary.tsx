@@ -102,11 +102,18 @@ export default function Diary() {
     // EmotionOrb 색상
     const emotionOrbColor = useMemo(() => {
         const color = mood?.color || '#6366f1';
+        if (import.meta.env.DEV && mood?.color) {
+            console.log('🎨 EmotionOrb color:', color, 'from mood:', mood);
+        }
         return color;
     }, [mood]);
 
     const onlineOrbColor = useMemo(() => {
-        return mood?.color || '#6366f1';
+        const color = mood?.color || '#6366f1';
+        if (import.meta.env.DEV && mood?.color) {
+            console.log('🎨 OnlineOrb color:', color);
+        }
+        return color;
     }, [mood?.color]);
     
     // 감정 분석 대기 중 상태 (5개 미만 메시지 && 감정 미분석) - 채팅 전부터 색상 순환
@@ -285,8 +292,14 @@ export default function Diary() {
             // 사용자 메시지만 카운트
             const userMsgCount = msgs.filter(m => m.role === 'user').length;
             setMessageCount(userMsgCount);
-          setMood(data?.session?.mood ?? null);
-          setSelectedDate(String(data?.session?.date || todayKey()));
+            
+            // mood 설정 (디버깅 로그 추가)
+            const sessionMood = data?.session?.mood ?? null;
+            if (import.meta.env.DEV) {
+                console.log('🎨 Setting mood:', sessionMood);
+            }
+            setMood(sessionMood);
+            setSelectedDate(String(data?.session?.date || todayKey()));
             await refreshList();
         } catch {}
         finally { setLoadingDiary(false); }
@@ -332,33 +345,48 @@ export default function Diary() {
             // eslint-disable-next-line react-hooks/exhaustive-deps
         }, [loading, user]);
 
-    // AI가 온라인 채팅 내용을 요약하는 함수
-    const generateAISummary = async (sessionId: string) => {
-        try {
-            setSending(true);
-            // 로딩 표시만 (사용자 메시지는 표시하지 않음)
-            setAiChatMessages([{ role: 'assistant', content: '…' }]);
+    // AI 대화 시작 - 온라인 채팅 세션에서 사용자가 직접 AI와 대화를 시작할 때 사용
+    // 자동 요약은 하지 않음
+
+    // 탭 전환 시 각 탭의 최신 세션 자동 선택
+    useEffect(() => {
+        // AI 대화 탭이 활성화되고, AI 세션 목록이 있을 때
+        if (activeTab === 'ai' && list.length > 0) {
+            // 현재 선택된 세션이 AI 세션인지 확인
+            const currentIsAI = list.some(item => item._id === selected);
             
-            const res = await fetch(`/api/diary/session/${sessionId}/chat`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                credentials: 'include',
-                body: JSON.stringify({ text: '[자동요약] 이 대화 내용을 간단히 요약해줄 수 있어?' }),
-            });
-            
-            if (res.ok) {
-                const data = await res.json();
-                // AI 응답만 표시 (사용자 요청 메시지는 제외)
-                setAiChatMessages([{ role: 'assistant', content: data?.assistant?.content || '대화 내용을 요약하지 못했습니다.' }]);
-            } else {
-                setAiChatMessages([{ role: 'assistant', content: '요약 생성에 실패했습니다.' }]);
+            if (!currentIsAI) {
+                // 최신 AI 세션 선택
+                const latestAI = list[0];
+                if (import.meta.env.DEV) {
+                    console.log('🔄 Auto-selecting latest AI session:', latestAI._id);
+                }
+                setSelected(latestAI._id);
+                setSelectedDate(latestAI.date);
+                setExpandedDates(prev => new Set([...prev, latestAI.date]));
+                void loadSession(latestAI._id);
             }
-        } catch {
-            setAiChatMessages([{ role: 'assistant', content: '네트워크 오류가 발생했습니다.' }]);
-        } finally {
-            setSending(false);
         }
-    };
+        
+        // 온라인 채팅 탭이 활성화되고, pending 세션이 없으며, 온라인 목록이 있을 때
+        if (activeTab === 'online' && !pendingOnlineSessionId && onlineList.length > 0) {
+            // 현재 선택된 세션이 온라인 세션인지 확인
+            const currentIsOnline = onlineList.some(item => item._id === selected);
+            
+            if (!currentIsOnline) {
+                // 최신 온라인 세션 선택
+                const latestOnline = onlineList[0];
+                if (import.meta.env.DEV) {
+                    console.log('🔄 Auto-selecting latest online session:', latestOnline._id);
+                }
+                setSelected(latestOnline._id);
+                setSelectedDate(latestOnline.date);
+                setExpandedDates(prev => new Set([...prev, latestOnline.date]));
+                void loadSession(latestOnline._id);
+            }
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [activeTab, list, onlineList, pendingOnlineSessionId]);
 
     // 온라인 채팅에서 저장 후 이동 시 처리
     useEffect(() => {
@@ -392,32 +420,60 @@ export default function Diary() {
     // onlineList 업데이트 시 pending 세션 자동 선택
     useEffect(() => {
         if (pendingOnlineSessionId && onlineList.length > 0) {
+            if (import.meta.env.DEV) {
+                console.log('🔍 Checking for pending session:', {
+                    pendingId: pendingOnlineSessionId,
+                    onlineListCount: onlineList.length,
+                    onlineListIds: onlineList.map(s => s._id)
+                });
+            }
+            
             // onlineList에서 해당 세션을 찾음
             const targetSession = onlineList.find(item => item._id === pendingOnlineSessionId);
             
             if (targetSession) {
                 if (import.meta.env.DEV) {
-                    console.log('✅ Auto-selecting online session:', pendingOnlineSessionId);
+                    console.log('✅ Auto-selecting online session:', {
+                        sessionId: pendingOnlineSessionId,
+                        date: targetSession.date,
+                        title: targetSession.title
+                    });
                 }
                 
-                // 세션 선택
+                // 날짜 펼치기
+                setExpandedDates(prev => new Set([...prev, targetSession.date]));
+                
+                // 세션 선택 및 로드
                 setSelected(pendingOnlineSessionId);
                 setSelectedDate(targetSession.date);
                 
-                // 세션 데이터 로드
+                // 세션 데이터 로드 (AI 요약은 자동 생성하지 않음)
                 void loadSession(pendingOnlineSessionId).then(() => {
                     if (import.meta.env.DEV) {
-                        console.log('✅ Auto-loaded session data');
+                        console.log('✅ Auto-loaded online session without auto-summary');
                     }
                     
-                    // AI 요약 자동 생성
+                    // 선택된 세션으로 스크롤 (약간의 지연 후)
                     setTimeout(() => {
-                        void generateAISummary(pendingOnlineSessionId);
-                    }, 500);
+                        const sessionElement = document.querySelector(`[data-session-id="${pendingOnlineSessionId}"]`);
+                        if (import.meta.env.DEV) {
+                            console.log('📍 Scrolling to session:', {
+                                sessionId: pendingOnlineSessionId,
+                                element: sessionElement
+                            });
+                        }
+                        if (sessionElement) {
+                            sessionElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                        }
+                    }, 300);
                 });
                 
                 // pending 상태 초기화
                 setPendingOnlineSessionId(null);
+            } else {
+                if (import.meta.env.DEV) {
+                    console.warn('⚠️ Pending session not found in onlineList:', pendingOnlineSessionId);
+                }
             }
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1007,6 +1063,7 @@ export default function Diary() {
                                     return (
                                         <div
                                             key={item._id}
+                                            data-session-id={item._id}
                                             style={{
                                                 padding: '6px 8px',
                                                 borderRadius: 8,

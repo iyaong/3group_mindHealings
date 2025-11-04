@@ -184,6 +184,10 @@ const LiquidCore = memo(function LiquidCore({ color }: { color: string }) {
     const base = hexToRgb(color);
     const baseColor = new THREE.Color(base.r, base.g, base.b);
     
+    if (import.meta.env.DEV) {
+      console.log('🎨 EmotionOrbPremium color changed:', color);
+    }
+    
     return {
       color1: baseColor,
       color2: baseColor.clone().multiplyScalar(1.2), // 약간 밝게
@@ -216,6 +220,14 @@ const LiquidCore = memo(function LiquidCore({ color }: { color: string }) {
       materialRef.current.uniforms.uColor1.value.copy(colors.color1);
       materialRef.current.uniforms.uColor2.value.copy(colors.color2);
       materialRef.current.uniforms.uColor3.value.copy(colors.color3);
+      
+      if (import.meta.env.DEV) {
+        console.log('🎨 Updated shader uniforms:', {
+          color1: colors.color1,
+          color2: colors.color2,
+          color3: colors.color3
+        });
+      }
     }
   }, [colors]);
 
@@ -319,6 +331,33 @@ const EmotionOrbPremium = memo(function EmotionOrbPremium({
   messageCount = 0
 }: EmotionOrbPremiumProps) {
   const [cyclingColorIndex, setCyclingColorIndex] = useState(0);
+  
+  // WebGL 컨텍스트 복구 핸들러
+  useEffect(() => {
+    const canvas = document.querySelector('.emotion-orb-premium-container canvas');
+    if (!canvas) return;
+    
+    const handleContextLost = (event: Event) => {
+      event.preventDefault();
+      if (import.meta.env.DEV) {
+        console.warn('⚠️ WebGL 컨텍스트 손실 감지, 복구 시도 중...');
+      }
+    };
+    
+    const handleContextRestored = () => {
+      if (import.meta.env.DEV) {
+        console.log('✅ WebGL 컨텍스트 복구 완료');
+      }
+    };
+    
+    canvas.addEventListener('webglcontextlost', handleContextLost);
+    canvas.addEventListener('webglcontextrestored', handleContextRestored);
+    
+    return () => {
+      canvas.removeEventListener('webglcontextlost', handleContextLost);
+      canvas.removeEventListener('webglcontextrestored', handleContextRestored);
+    };
+  }, []);
   
   // 진단 중일 때 색상 순환
   useEffect(() => {

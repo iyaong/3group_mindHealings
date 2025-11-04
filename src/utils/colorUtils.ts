@@ -48,9 +48,10 @@ export function hslToHex(h: number, s: number, l: number) {
 
 export function paletteFromBase(hex: string) {
   const { h, s, l } = hexToHsl(hex);
-  const c1 = hslToHex(h, Math.min(100, s * 1.0), Math.min(90, l * 1.05));
-  const c2 = hslToHex((h + 300) % 360, Math.min(100, s * 0.8), Math.max(20, l * 0.9));
-  const c3 = hslToHex((h + 60) % 360, Math.min(100, s * 0.9), Math.min(85, l * 1.0));
+  // 채도와 명도 변화를 더 크게 해서 색상 차이를 명확하게
+  const c1 = hslToHex(h, Math.min(100, s * 1.15), Math.min(95, l * 1.15)); // 더 밝고 선명
+  const c2 = hslToHex((h + 300) % 360, Math.min(100, s * 0.9), Math.max(15, l * 0.75)); // 더 어둡게
+  const c3 = hslToHex((h + 60) % 360, Math.min(100, s * 1.1), Math.min(90, l * 1.05)); // 약간 변화
   return { c1, c2, c3 };
 }
 
