@@ -2,7 +2,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom"; // 페이지 이동용 훅
 import { useAuth } from "../hooks/useAuth"; // 로그인 상태 관리용 커스텀 훅
-import { createGradientStyle } from "../utils/colorUtils"; // 그라데이션 생성 유틸리티
 import { useToast } from "../components/Toast"; // Toast 알림 시스템
 import "./Chat.css";
 
@@ -23,7 +22,14 @@ export default function Chat() {
     const [input, setInput] = useState(""); // 사용자가 입력 중인 텍스트
     const [sending, setSending] = useState(false); // 메시지 전송 중 여부
     const [typing, setTyping] = useState(false); // AI가 "답변 생성 중" 상태 표시용
-    const [savingToDiary, setSavingToDiary] = useState(false); // 다이어리 저장 중 여부
+    
+    // 감정 진단 관련 상태
+    const [messageCount, setMessageCount] = useState<number>(0); // 사용자 메시지 개수
+    const [mood, setMood] = useState<{ emotion: string; score: number; color: string } | null>(null);
+    const [isAnalyzing, setIsAnalyzing] = useState(false); // 감정 분석 중
+    const [savingToDiary, setSavingToDiary] = useState(false); // 다이어리 저장 중
+    const MIN_REQUIRED_MESSAGES = 5; // 최소 요구 메시지 수
+    
     const bottomRef = useRef<HTMLDivElement | null>(null); // 스크롤 맨 아래로 이동시키기 위한 참조
     // 이전에 변경한 바디/네비(nav) 배경을 저장해서 컴포넌트 언마운트 시 복원하기 위한 레퍼런스
     const prevBodyBgRef = useRef<string | null>(null);
@@ -61,18 +67,14 @@ export default function Chat() {
         return () => {
             try {
                 if (prevBodyBgRef.current !== null) {
-                    document.body.style.background = prevBodyBgRef.current || '';
-                    document.body.style.removeProperty('--chat-gradient');
+                    document.body.style.backgroundColor = prevBodyBgRef.current || '';
                     prevBodyBgRef.current = null;
                 }
-                // chat 배경 표시자 제거
-                try { delete document.body.dataset.chatBg; } catch {}
-                
                 if (navChangedRef.current) {
                     const nav = document.querySelector('nav') as HTMLElement | null;
                     if (nav) {
+                        // 복원할 이전 inline 스타일이 있다면 복원, 없으면 빈 문자열로 초기화
                         nav.style.backgroundColor = prevNavBgRef.current || '';
-                        nav.style.backdropFilter = '';
                     }
                     prevNavBgRef.current = null;
                     navChangedRef.current = false;
@@ -117,7 +119,10 @@ export default function Chat() {
             initialMessageProcessed.current = true; // 한 번만 실행되도록 표시
             // 약간의 딜레이를 주어 UI가 안정화된 후 전송
             setTimeout(() => {
-                void send(initialMessage);
+                setInput(initialMessage);
+                setTimeout(() => {
+                    void send(initialMessage);
+                }, 100);
             }, 300);
         }
     }, [loading, user, location.state]);
@@ -149,10 +154,20 @@ export default function Chat() {
 
             // 서버 응답이 실패한 경우
             if (!res.ok) {
+                // 마지막 "…" 메시지를 제거하고 에러 메시지 표시
+                setMsgs((prev) => [
+                    ...prev.slice(0, -1),
+                    { role: 'assistant', content: '답변 생성에 실패했습니다. 잠시 후 다시 시도해 주세요.' },
+                ]);
+                return;
+            }
+
+            // 추가적으로 상태 코드에 따라 에러 처리 분기
+            if (!res.ok) {
                 if (res.status === 401) {
                     // 로그인 필요
                     setMsgs((prev) => [
-                        ...prev.slice(0, -1),
+                        ...prev,
                         { role: 'assistant', content: '로그인이 필요합니다. 로그인 후 다시 시도해 주세요.' },
                     ]);
                 } else {
@@ -160,13 +175,13 @@ export default function Chat() {
                     try {
                         const err = await res.json();
                         setMsgs((prev) => [
-                            ...prev.slice(0, -1),
+                            ...prev,
                             { role: 'assistant', content: err?.message || '답변 생성에 실패했습니다.' },
                         ]);
                     } catch {
                         // 예외 처리
                         setMsgs((prev) => [
-                            ...prev.slice(0, -1),
+                            ...prev,
                             { role: 'assistant', content: '답변 생성에 실패했습니다. 잠시 후 다시 시도해 주세요.' },
                         ]);
                     }
@@ -177,6 +192,8 @@ export default function Chat() {
             // 성공적으로 응답 받았을 때
             const data = await res.json();
             let content = data?.content || '';
+
+            console.log(content);
 
             // ----------------------------------------- # AI 메시지에 포함된 json 추출 및 사용 -시작- -----------------------------------------
             // jsonMatch: AI 메시지에 포함된 json들
@@ -193,45 +210,14 @@ export default function Chat() {
                     try {
                         // 바디 배경을 변경하기 전에 이전 값을 저장
                         if (prevBodyBgRef.current === null) {
-                            prevBodyBgRef.current = document.body.style.background || '';
+                            prevBodyBgRef.current = document.body.style.backgroundColor || '';
                         }
-                        
-                        // Chat 페이지 전용 표시자 설정
+                        // Chat 페이지 전용 표시자 설정 (다른 페이지에서 흰색 강제화에 사용)
                         try { document.body.dataset.chatBg = '1'; } catch {}
-                        
-                        // 생동감 있는 그라데이션 생성
-                        const newGradientStyle = createGradientStyle(json.color);
-                        
-                        // 현재 그라데이션을 이전 그라데이션으로 저장
-                        const currentGradient = getComputedStyle(document.body).getPropertyValue('--chat-gradient');
-                        if (currentGradient) {
-                            document.body.style.setProperty('--chat-gradient-old', currentGradient);
-                        }
-                        
-                        // 애니메이션 리셋: 새 그라데이션 준비
-                        document.body.style.setProperty('--new-opacity', '0');
-                        document.body.style.setProperty('--old-opacity', '1');
-                        
-                        // 새 그라데이션 설정
-                        document.body.style.setProperty('--chat-gradient', newGradientStyle);
-                        
-                        // 약간의 딜레이 후 전환 시작 (DOM 업데이트 대기)
-                        requestAnimationFrame(() => {
-                            requestAnimationFrame(() => {
-                                // 중간부터 가장자리로 퍼지는 효과 시작
-                                document.body.style.setProperty('--new-opacity', '1');
-                                document.body.style.setProperty('--old-opacity', '0');
-                            });
-                        });
-                        
-                        // 3초 후 정리 (애니메이션 완료 후)
-                        setTimeout(() => {
-                            document.body.style.setProperty('--chat-gradient-old', newGradientStyle);
-                            document.body.style.setProperty('--new-opacity', '0');
-                            document.body.style.setProperty('--old-opacity', '1');
-                        }, 3000);
+                        document.body.style.backgroundColor = json.color;
 
-                        // 네비게이션(nav)이 투명(배경 없음)이라면 반투명 흰색 배경을 적용
+                        // 네비게이션(nav)이 투명(배경 없음)이라면 흰색 배경을 적용합니다.
+                        // 변경하기 전에 nav의 이전 inline 스타일을 저장하여 언마운트 시 복원합니다.
                         const nav = document.querySelector('nav') as HTMLElement | null;
                         if (nav) {
                             const inlineBg = (nav.style && nav.style.backgroundColor) ? nav.style.backgroundColor.trim() : '';
@@ -239,8 +225,7 @@ export default function Chat() {
                             const isTransparent = !inlineBg && (computedBg === 'transparent' || computedBg === 'rgba(0, 0, 0, 0)');
                             if (isTransparent) {
                                 if (prevNavBgRef.current === null) prevNavBgRef.current = nav.style.backgroundColor || '';
-                                nav.style.backgroundColor = 'rgba(255, 255, 255, 0.95)';
-                                nav.style.backdropFilter = 'blur(10px)';
+                                nav.style.backgroundColor = '#ffffff';
                                 navChangedRef.current = true;
                             }
                         }
@@ -256,6 +241,17 @@ export default function Chat() {
 
             // 마지막 "…"을 실제 AI 응답으로 교체
             setMsgs((prev) => [...prev.slice(0, -1), { role: 'assistant', content }]);
+            
+            // 사용자 메시지 개수 업데이트 (첫 인사 메시지 제외)
+            const userMsgCount = next.filter(m => m.role === 'user').length;
+            setMessageCount(userMsgCount);
+            
+            // 5번 대화 도달 시 자동으로 감정 분석 실행
+            if (userMsgCount === MIN_REQUIRED_MESSAGES && !mood) {
+                setTimeout(() => {
+                    void analyzeEmotion();
+                }, 1000); // AI 응답이 완전히 렌더링된 후 실행
+            }
         } catch {
             // 네트워크 오류 발생 시
             setMsgs((prev) => [
@@ -271,26 +267,85 @@ export default function Chat() {
     // 엔터 키로 전송, Shift+Enter로 줄바꿈
     const onKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
         // IME(한글 입력 중 등) 상태가 아닐 때만 엔터로 전송
-        if (e.key === 'Enter' && !e.shiftKey && !(e.nativeEvent as KeyboardEvent).isComposing) {
+    if (e.key === 'Enter' && !e.shiftKey && !(e as unknown as { nativeEvent?: { isComposing?: boolean } }).nativeEvent?.isComposing) {
             e.preventDefault(); // 줄바꿈 방지
             void send(); // 비동기로 전송
         }
     };
-
+    
+    // 감정 분석 함수
+    const analyzeEmotion = async () => {
+        if (isAnalyzing || messageCount < 2) return; // 최소 2개 메시지 필요
+        
+        setIsAnalyzing(true);
+        
+        try {
+            // 사용자 메시지만 추출 (첫 인사 메시지 제외)
+            const userMessages = msgs.slice(1).filter(m => m.role === 'user' && m.content.trim() && m.content !== '…');
+            
+            if (userMessages.length === 0) {
+                showToast({ message: '분석할 메시지가 없습니다.', type: 'warning', duration: 2500 });
+                return;
+            }
+            
+            // 전체 대화 텍스트 생성
+            const allText = userMessages.map(m => m.content).join(' ');
+            
+            // 감정 분석 API 호출
+            const res = await fetch('/api/ai/analyze-emotion', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({ text: allText })
+            });
+            
+            if (!res.ok) {
+                throw new Error('감정 분석에 실패했습니다.');
+            }
+            
+            const data = await res.json();
+            const analyzedMood = data?.mood;
+            
+            if (analyzedMood && analyzedMood.emotion && analyzedMood.color) {
+                setMood(analyzedMood);
+                showToast({ 
+                    message: `✨ 감정 분석 완료! ${analyzedMood.emotion} (${Math.round(analyzedMood.score * 100)}%)`, 
+                    type: 'success', 
+                    duration: 3500 
+                });
+            } else {
+                throw new Error('감정 분석 결과가 유효하지 않습니다.');
+            }
+        } catch (error) {
+            console.error('감정 분석 오류:', error);
+            const errorMsg = error instanceof Error ? error.message : '감정 분석 중 오류가 발생했습니다.';
+            showToast({ message: errorMsg, type: 'error', duration: 3000 });
+        } finally {
+            setIsAnalyzing(false);
+        }
+    };
+    
     // 다이어리에 저장 함수
     const saveToDiary = async () => {
-        if (savingToDiary) return; // 이미 저장 중이면 무시
+        if (savingToDiary) return;
         
-        // 로그인 상태 확인
         if (!user) {
-            showToast({ message: '로그인이 필요합니다. 다시 로그인해주세요.', type: 'warning', duration: 3000 });
+            showToast({ message: '로그인이 필요합니다.', type: 'warning', duration: 3000 });
             setTimeout(() => navigate('/login'), 1500);
             return;
         }
         
-        // 인사 메시지만 있는 경우 저장하지 않음
         if (msgs.length <= 1) {
             showToast({ message: '저장할 대화 내용이 없습니다.', type: 'info', duration: 2500 });
+            return;
+        }
+        
+        if (!mood) {
+            showToast({ 
+                message: '감정 진단을 먼저 완료해주세요. 🎨', 
+                type: 'warning', 
+                duration: 3000 
+            });
             return;
         }
         
@@ -300,37 +355,26 @@ export default function Chat() {
         setSavingToDiary(true);
         
         try {
-            // 1. 오늘 날짜로 다이어리 세션 생성
             const today = new Date();
             const dateKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
             
-            console.log('📝 다이어리 세션 생성 시도:', dateKey);
-            
+            // 다이어리 세션 생성
             const createRes = await fetch('/api/diary/session', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 credentials: 'include',
-                body: JSON.stringify({ date: dateKey, type: 'ai' }) // AI 대화 타입 명시
+                body: JSON.stringify({ date: dateKey, type: 'ai' })
             });
             
             if (!createRes.ok) {
-                const errorData = await createRes.json().catch(() => ({}));
-                console.error('세션 생성 실패:', createRes.status, errorData);
-                throw new Error(errorData.message || `다이어리 세션 생성 실패 (${createRes.status})`);
+                throw new Error('다이어리 세션 생성 실패');
             }
             
             const createData = await createRes.json();
             const sessionId = createData.id;
-            console.log('✅ 세션 생성 성공:', sessionId);
             
-            // 2. 대화 내용을 다이어리 세션으로 가져오기 (첫 인사 메시지 제외)
-            const messagesToSave = msgs.slice(1).filter(m => m.content.trim() && m.content !== '…'); // 인사 메시지 및 빈 메시지 제외
-            
-            console.log('📤 저장할 메시지 개수:', messagesToSave.length);
-            
-            if (messagesToSave.length === 0) {
-                throw new Error('저장할 유효한 메시지가 없습니다.');
-            }
+            // 대화 내용 저장 (첫 인사 메시지 제외)
+            const messagesToSave = msgs.slice(1).filter(m => m.content.trim() && m.content !== '…');
             
             const importRes = await fetch(`/api/diary/session/${sessionId}/import`, {
                 method: 'POST',
@@ -340,29 +384,23 @@ export default function Chat() {
             });
             
             if (!importRes.ok) {
-                const errorData = await importRes.json().catch(() => ({}));
-                console.error('메시지 import 실패:', importRes.status, errorData);
-                throw new Error(errorData.message || `다이어리 저장 실패 (${importRes.status})`);
+                throw new Error('다이어리 저장 실패');
             }
             
             const importData = await importRes.json();
-            console.log('✅ 저장 성공:', importData);
             
-            // 3. 성공 알림
             showToast({ 
                 message: `${importData.imported}개의 메시지가 다이어리에 저장되었습니다! 🎉`, 
                 type: 'success', 
                 duration: 3500 
             });
             
-            // 4. 다이어리 페이지로 이동 여부 묻기
             const goToDiary = confirm('다이어리 페이지로 이동하시겠습니까?');
             if (goToDiary) {
                 navigate('/diary');
             }
-            
         } catch (error) {
-            console.error('❌ 다이어리 저장 에러:', error);
+            console.error('다이어리 저장 에러:', error);
             const errorMsg = error instanceof Error ? error.message : '다이어리 저장 중 오류가 발생했습니다.';
             showToast({ message: errorMsg, type: 'error', duration: 4000 });
         } finally {
@@ -405,24 +443,16 @@ export default function Chat() {
 
                 {/* 메시지 본문 (파란색: 내 메시지, 회색: AI 메시지) */}
                 <div
-                    className="chat-bubble"
                     style={{
                         maxWidth: '70%',
                         whiteSpace: 'pre-wrap',
                         wordBreak: 'break-word',
-                        background: mine 
-                            ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' 
-                            : 'rgba(255, 255, 255, 0.9)',
-                        backdropFilter: 'blur(10px)',
+                        background: mine ? '#2563eb' : '#f1f5f9',
                         color: mine ? '#fff' : '#111',
-                        padding: '10px 14px',
-                        borderRadius: 16,
-                        borderTopRightRadius: mine ? 4 : 16,
-                        borderTopLeftRadius: mine ? 16 : 4,
-                        boxShadow: mine 
-                            ? '0 4px 12px rgba(102, 126, 234, 0.3)' 
-                            : '0 2px 8px rgba(0, 0, 0, 0.1)',
-                        border: mine ? 'none' : '1px solid rgba(0, 0, 0, 0.05)',
+                        padding: '8px 12px',
+                        borderRadius: 12,
+                        borderTopRightRadius: mine ? 2 : 12,
+                        borderTopLeftRadius: mine ? 12 : 2,
                     }}
                 >
                     {m.content}
@@ -455,46 +485,164 @@ export default function Chat() {
     return (
         <>
             <ToastContainer />
-            <div className="chat-container" style={{ maxWidth: 720, margin: '0 auto', padding: '24px 16px' }}>
-                <div className="chat-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '8px 0 16px' }}>
-                    <h2 style={{ textAlign: 'center', margin: 0, flex: 1 }}>AI 채팅 페이지</h2>
-                <button
-                    className="chat-save-button"
-                    onClick={() => void saveToDiary()}
-                    disabled={savingToDiary || msgs.length <= 1}
-                    style={{
-                        padding: '8px 16px',
-                        borderRadius: 12,
-                        border: '1px solid rgba(16, 185, 129, 0.5)',
-                        background: savingToDiary ? 'rgba(209, 250, 229, 0.8)' : 'rgba(236, 253, 245, 0.9)',
-                        backdropFilter: 'blur(10px)',
-                        color: '#065f46',
-                        cursor: savingToDiary || msgs.length <= 1 ? 'not-allowed' : 'pointer',
-                        fontSize: 14,
-                        fontWeight: 600,
-                        opacity: msgs.length <= 1 ? 0.5 : 1,
-                        boxShadow: msgs.length > 1 ? '0 2px 8px rgba(16, 185, 129, 0.2)' : 'none',
-                        transition: 'all 0.3s ease'
-                    }}
-                    title={msgs.length <= 1 ? '저장할 대화가 없습니다' : '현재 대화를 다이어리에 저장'}
-                >
-                    {savingToDiary ? '저장 중...' : '📝 다이어리에 저장'}
-                </button>
-            </div>
+            <div style={{ maxWidth: 720, margin: '0 auto', padding: '24px 16px' }}>
+                <h2 style={{ textAlign: 'center', margin: '8px 0 16px' }}>AI 채팅 페이지</h2>
 
-            {/* 채팅 메시지 영역 */}
+                {/* 감정 진단 상태 섹션 */}
+                <div style={{
+                    margin: '0 0 16px',
+                    padding: '16px',
+                    borderRadius: 12,
+                    background: mood 
+                        ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(5, 150, 105, 0.1) 100%)'
+                        : isAnalyzing
+                            ? 'linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(139, 92, 246, 0.1) 100%)'
+                            : 'linear-gradient(135deg, rgba(251, 191, 36, 0.1) 0%, rgba(245, 158, 11, 0.1) 100%)',
+                    border: mood 
+                        ? '2px solid #10b981' 
+                        : isAnalyzing
+                            ? '2px solid #6366f1'
+                            : '2px solid #fbbf24',
+                }}>
+                    {/* 상단 헤더 영역 */}
+                    <div style={{ 
+                        display: 'flex', 
+                        alignItems: 'flex-start', 
+                        justifyContent: 'space-between',
+                        marginBottom: 12,
+                        gap: 12
+                    }}>
+                        {/* 좌측: 아이콘 + 상태 텍스트 */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 1 }}>
+                            <span style={{ fontSize: 24 }}>
+                                {mood ? '✨' : isAnalyzing ? '🔄' : '📊'}
+                            </span>
+                            <div>
+                                <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 4 }}>
+                                    {mood 
+                                        ? '진단 완료' 
+                                        : isAnalyzing 
+                                            ? '진단 중...' 
+                                            : `진단 전 (${messageCount}/${MIN_REQUIRED_MESSAGES})`
+                                    }
+                                </div>
+                                {mood && (
+                                    <div style={{ fontSize: 14, color: '#065f46' }}>
+                                        감정: <strong>{mood.emotion}</strong> ({Math.round(mood.score * 100)}%)
+                                    </div>
+                                )}
+                                {!mood && !isAnalyzing && messageCount >= 2 && (
+                                    <div style={{ fontSize: 13, color: '#92400e' }}>
+                                        {messageCount >= MIN_REQUIRED_MESSAGES 
+                                            ? '감정 분석을 시작할 수 있습니다' 
+                                            : `${MIN_REQUIRED_MESSAGES - messageCount}번 더 대화하면 분석 가능합니다`
+                                        }
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                        
+                        {/* 우측: 진단하기 버튼 (진단 전/중일 때만) */}
+                        {!mood && messageCount >= 2 && !isAnalyzing && (
+                            <button
+                                onClick={() => void analyzeEmotion()}
+                                style={{
+                                    padding: '8px 16px',
+                                    borderRadius: 8,
+                                    border: 'none',
+                                    background: messageCount >= MIN_REQUIRED_MESSAGES
+                                        ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)'
+                                        : 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
+                                    color: '#fff',
+                                    cursor: 'pointer',
+                                    fontWeight: 700,
+                                    fontSize: 13,
+                                    boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+                                    transition: 'all 0.2s ease',
+                                    whiteSpace: 'nowrap',
+                                    flexShrink: 0
+                                }}
+                            >
+                                🧠 감정 진단하기
+                            </button>
+                        )}
+                    </div>
+                    
+                    {/* 진단 완료 시: 컬러 코드 + 다이어리 추가 버튼 */}
+                    {mood && (
+                        <>
+                            <div style={{
+                                padding: '12px',
+                                borderRadius: 8,
+                                background: 'rgba(255, 255, 255, 0.6)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 8,
+                                fontSize: 14,
+                                marginBottom: 12
+                            }}>
+                                <span style={{ fontWeight: 600 }}>컬러 코드:</span>
+                                <div style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: 8
+                                }}>
+                                    <div style={{
+                                        width: 32,
+                                        height: 32,
+                                        borderRadius: 6,
+                                        background: mood.color,
+                                        border: '2px solid rgba(0,0,0,0.1)',
+                                        boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                                    }} />
+                                    <code style={{
+                                        padding: '4px 8px',
+                                        borderRadius: 4,
+                                        background: 'rgba(0,0,0,0.05)',
+                                        fontFamily: 'monospace',
+                                        fontSize: 13,
+                                        fontWeight: 600
+                                    }}>
+                                        {mood.color}
+                                    </code>
+                                </div>
+                            </div>
+                            
+                            <button
+                                onClick={() => void saveToDiary()}
+                                disabled={savingToDiary}
+                                style={{
+                                    width: '100%',
+                                    padding: '12px 20px',
+                                    borderRadius: 10,
+                                    border: 'none',
+                                    background: savingToDiary 
+                                        ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.5) 0%, rgba(5, 150, 105, 0.5) 100%)'
+                                        : 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                                    color: '#fff',
+                                    cursor: savingToDiary ? 'not-allowed' : 'pointer',
+                                    fontWeight: 700,
+                                    fontSize: 15,
+                                    boxShadow: savingToDiary ? 'none' : '0 4px 12px rgba(16, 185, 129, 0.4)',
+                                    transition: 'all 0.3s ease'
+                                }}
+                            >
+                                {savingToDiary ? '💾 저장 중...' : '📝 다이어리에 추가'}
+                            </button>
+                        </>
+                    )}
+                </div>
+
+                {/* 채팅 메시지 영역 */}
             <div
-                className="chat-message-area"
                 style={{
-                    border: '1px solid rgba(255, 255, 255, 0.3)',
-                    borderRadius: 16,
+                    border: '1px solid #e5e7eb',
+                    borderRadius: 12,
                     height: '60vh',
                     minHeight: 360,
                     padding: 12,
                     overflowY: 'auto',
-                    background: 'rgba(255, 255, 255, 0.75)',
-                    backdropFilter: 'blur(20px)',
-                    boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
+                    background: '#ffffff',
                 }}
             >
                 {/* 모든 메시지 렌더링 */}
@@ -522,14 +670,11 @@ export default function Chat() {
                         </div>
                         <div
                             style={{
-                                background: 'rgba(255, 255, 255, 0.9)',
-                                backdropFilter: 'blur(10px)',
-                                color: '#667eea',
-                                padding: '10px 14px',
-                                borderRadius: 16,
-                                borderTopLeftRadius: 4,
-                                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
-                                border: '1px solid rgba(0, 0, 0, 0.05)',
+                                background: '#f1f5f9',
+                                color: '#111',
+                                padding: '8px 12px',
+                                borderRadius: 12,
+                                borderTopLeftRadius: 2,
                             }}
                         >
                             {/* 점 3개 애니메이션 */}
@@ -548,7 +693,6 @@ export default function Chat() {
 
             {/* 입력창 + 전송 버튼 */}
             <form
-                className="chat-input-form"
                 onSubmit={(e) => {
                     e.preventDefault();
                     void send(); // 엔터로 전송
@@ -563,31 +707,22 @@ export default function Chat() {
                     rows={2}
                     style={{
                         flex: 1,
-                        padding: 12,
-                        border: '1px solid rgba(229, 231, 235, 0.5)',
-                        borderRadius: 12,
+                        padding: 10,
+                        border: '1px solid #e5e7eb',
+                        borderRadius: 8,
                         resize: 'vertical',
-                        background: 'rgba(255, 255, 255, 0.9)',
-                        backdropFilter: 'blur(10px)',
-                        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.05)',
-                        outline: 'none',
-                        transition: 'all 0.3s ease',
                     }}
                 />
                 <button
                     type="submit"
                     disabled={sending || !input.trim()}
                     style={{
-                        padding: '10px 16px',
-                        borderRadius: 12,
-                        border: 'none',
-                        background: sending ? 'rgba(147, 197, 253, 0.8)' : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                        padding: '10px 14px',
+                        borderRadius: 8,
+                        border: '1px solid #2563eb',
+                        background: sending ? '#93c5fd' : '#2563eb',
                         color: '#fff',
                         cursor: sending ? 'not-allowed' : 'pointer',
-                        fontWeight: 600,
-                        boxShadow: sending ? 'none' : '0 4px 12px rgba(102, 126, 234, 0.4)',
-                        transition: 'all 0.3s ease',
-                        transform: sending ? 'scale(0.95)' : 'scale(1)',
                     }}
                 >
                     {sending ? '전송중…' : '전송'}

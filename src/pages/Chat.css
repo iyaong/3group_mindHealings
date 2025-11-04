@@ -1,66 +1,7 @@
-/* Chat 페이지 배경 - 생동감 있는 그라데이션 애니메이션 */
+/* transition은 Chat 페이지에서만 적용되도록 data 속성으로 범위를 좁힙니다.
+   이렇게 하면 Chat에서 색을 바꿀 때는 부드럽게 변화하지만,
+   다른 페이지로 이동 시 data 속성을 제거하면 트랜지션 규칙이 사라져
+   배경이 즉시 초기화됩니다. */
 body[data-chat-bg] {
-    position: relative;
-    overflow: hidden;
-}
-
-/* 이전 배경 그라데이션 레이어 (기존 색상) */
-body[data-chat-bg]::before {
-    content: '';
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    width: 200vmax;
-    height: 200vmax;
-    background: var(--chat-gradient-old, var(--chat-gradient, linear-gradient(135deg, #667eea 0%, #764ba2 100%)));
-    animation: gradientRotate 8s ease-in-out infinite;
-    z-index: -2;
-    opacity: var(--old-opacity, 1);
-    transition: opacity 2.5s ease-out;
-    transform-origin: center center;
-}
-
-/* 새로운 배경 그라데이션 레이어 (서서히 나타나는 새 색상) */
-body[data-chat-bg]::after {
-    content: '';
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    width: 200vmax;
-    height: 200vmax;
-    background: var(--chat-gradient, linear-gradient(135deg, #667eea 0%, #764ba2 100%));
-    animation: gradientRotate 8s ease-in-out infinite;
-    z-index: -1;
-    opacity: var(--new-opacity, 0);
-    transition: opacity 3s cubic-bezier(0.4, 0, 0.2, 1);
-    transform-origin: center center;
-}
-
-/* 회전하는 그라데이션 애니메이션 */
-@keyframes gradientRotate {
-    0% {
-        transform: translate(-50%, -50%) rotate(0deg) scale(1.5);
-    }
-    25% {
-        transform: translate(-50%, -50%) rotate(90deg) scale(1.6);
-    }
-    50% {
-        transform: translate(-50%, -50%) rotate(180deg) scale(1.7);
-    }
-    75% {
-        transform: translate(-50%, -50%) rotate(270deg) scale(1.6);
-    }
-    100% {
-        transform: translate(-50%, -50%) rotate(360deg) scale(1.5);
-    }
-}
-
-/* 타이핑 점 애니메이션 */
-@keyframes blink {
-    0%, 100% {
-        opacity: 0.2;
-    }
-    50% {
-        opacity: 1;
-    }
+    transition: background-color 0.6s ease;
 }

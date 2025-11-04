@@ -320,6 +320,34 @@ app.get('/api/ai/history', authMiddleware, async (req: any, res) => {
   }
 });
 
+// AI emotion analysis: POST /api/ai/analyze-emotion { text }
+app.post('/api/ai/analyze-emotion', authMiddleware, async (req: any, res) => {
+  try {
+    if (!OPENAI_API_KEY) return res.status(500).json({ message: 'OPENAI_API_KEY 미설정' });
+    
+    const { text } = req.body || {};
+    if (!text || typeof text !== 'string' || !text.trim()) {
+      return res.status(400).json({ message: '분석할 텍스트가 필요합니다.' });
+    }
+    
+    const client = await getClient();
+    const db = client.db(DB_NAME);
+    const userId = req.user.sub;
+    
+    // 감정 분석 실행
+    const mood = await detectEmotionFromText(text);
+    
+    // 개인화된 색상 적용
+    const personalizedColor = await personalizedColorForEmotion(db, userId, mood.color, mood.emotion);
+    const finalMood = { ...mood, color: personalizedColor };
+    
+    res.json({ ok: true, mood: finalMood });
+  } catch (e: any) {
+    console.error('감정 분석 API 오류:', e?.message || e);
+    res.status(500).json({ message: '감정 분석 중 오류가 발생했습니다.' });
+  }
+});
+
 app.get('/api/health', async (_req, res) => {
   try {
     const client = await getClient();
