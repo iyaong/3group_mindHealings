@@ -83,6 +83,7 @@ export default function Diary() {
     const [filterDate, setFilterDate] = useState<string | null>(null); // 달력에서 선택한 날짜 필터
     const [searchQuery, setSearchQuery] = useState<string>(''); // 검색어
     const [pendingOnlineSessionId, setPendingOnlineSessionId] = useState<string | null>(null); // 온라인 채팅 저장 후 자동 선택할 세션 ID
+    const [showWelcomeMessage, setShowWelcomeMessage] = useState<boolean>(false); // 환영 메시지 표시 여부
     const bottomRef = useRef<HTMLDivElement | null>(null);
 
     useEffect(() => {
@@ -488,6 +489,7 @@ export default function Diary() {
         const text = input.trim();
         if (!text || sending) return;
         setSending(true);
+        setShowWelcomeMessage(false); // 첫 메시지 입력 시 환영 메시지 숨김
         
         // 온라인 채팅 탭인 경우 aiChatMessages 사용
         const isOnlineTab = currentSessionType === 'online';
@@ -658,6 +660,7 @@ export default function Diary() {
                 const data = await res.json();
                 const id = String(data?.id);
                 setSelected(id);
+                setShowWelcomeMessage(true); // 새 대화 생성 시 환영 메시지 표시
                 await loadSession(id);
                 // 새 대화가 추가된 날짜를 자동으로 펼치기
                 setExpandedDates((prev) => new Set(prev).add(today));
@@ -1153,7 +1156,7 @@ export default function Diary() {
                     // AI 대화 탭 - 기존 UI 유지
                     <div style={{ ...bgStyle, border: '1px solid #e5e7eb', borderRadius: 12, minHeight: '70vh', padding: 12, position: 'relative', boxSizing: 'border-box' }}>
                         {/* 감정 오브: 채팅창 왼쪽 상단 고정, 크게 */}
-                        <div style={{ position: 'absolute', top: -10, left: -10, zIndex: 1, pointerEvents: 'none', width: 200, height: 200, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <div style={{ position: 'absolute', top: -10, left: -10, zIndex: 20, pointerEvents: 'none', width: 200, height: 200, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                             <div className="aurora-breathe" style={{ width: 200, height: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', transformOrigin: 'center center' }}>
                                 <EmotionOrbPremium 
                                     color={emotionOrbColor} 
@@ -1293,7 +1296,41 @@ export default function Diary() {
                             </div>
                         )}
 
-                        <div className="diary-chat-area" style={{ border: '1px solid #e5e7eb', borderRadius: 12, height: '55vh', maxHeight: '55vh', padding: 12, overflowY: 'auto', background: 'rgba(255,255,255,0.75)', width: 'min(100%, 1200px)', margin: '96px auto 0', boxSizing: 'border-box' }}>
+                        <div className="diary-chat-area" style={{ border: '1px solid #e5e7eb', borderRadius: 12, height: '55vh', maxHeight: '55vh', padding: 12, overflowY: 'auto', background: 'rgba(255,255,255,0.75)', width: 'min(100%, 1200px)', margin: '96px auto 0', boxSizing: 'border-box', position: 'relative' }}>
+                            {/* 환영 메시지 오버레이 */}
+                            {showWelcomeMessage && messages.length === 0 && (
+                                <div style={{
+                                    position: 'absolute',
+                                    top: 0,
+                                    left: 0,
+                                    right: 0,
+                                    bottom: 0,
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    background: 'rgba(0, 0, 0, 0.4)',
+                                    backdropFilter: 'blur(8px)',
+                                    WebkitBackdropFilter: 'blur(8px)',
+                                    borderRadius: 12,
+                                    zIndex: 10,
+                                    pointerEvents: 'none'
+                                }}>
+                                    <div style={{
+                                        fontSize: 24,
+                                        fontWeight: 700,
+                                        color: '#ffffff',
+                                        textAlign: 'center',
+                                        lineHeight: 1.6,
+                                        textShadow: '0 2px 8px rgba(0,0,0,0.3)',
+                                        padding: '0 20px'
+                                    }}>
+                                        당신의 감정에 공명하겠습니다<br />
+                                        당신의 이야기를 들려주세요
+                                    </div>
+                                </div>
+                            )}
+                            
                             {loadingDiary ? (
                                 <ChatLoadingSkeleton />
                             ) : (
@@ -1378,7 +1415,7 @@ export default function Diary() {
                                 position: 'absolute', 
                                 top: -10, 
                                 left: 0, 
-                                zIndex: 1, 
+                                zIndex: 20, 
                                 pointerEvents: 'none', 
                                 width: 120, 
                                 height: 120, 
@@ -1410,8 +1447,43 @@ export default function Diary() {
                                 padding: 12,
                                 marginBottom: 12,
                                 background: 'rgba(255,255,255,0.5)',
-                                minHeight: 0
+                                minHeight: 0,
+                                position: 'relative'
                             }}>
+                                {/* 환영 메시지 오버레이 */}
+                                {showWelcomeMessage && aiChatMessages.length === 0 && (
+                                    <div style={{
+                                        position: 'absolute',
+                                        top: 0,
+                                        left: 0,
+                                        right: 0,
+                                        bottom: 0,
+                                        display: 'flex',
+                                        flexDirection: 'column',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        background: 'rgba(0, 0, 0, 0.4)',
+                                        backdropFilter: 'blur(8px)',
+                                        WebkitBackdropFilter: 'blur(8px)',
+                                        borderRadius: 12,
+                                        zIndex: 10,
+                                        pointerEvents: 'none'
+                                    }}>
+                                        <div style={{
+                                            fontSize: 24,
+                                            fontWeight: 700,
+                                            color: '#ffffff',
+                                            textAlign: 'center',
+                                            lineHeight: 1.6,
+                                            textShadow: '0 2px 8px rgba(0,0,0,0.3)',
+                                            padding: '0 20px'
+                                        }}>
+                                            당신의 감정에 공명하겠습니다<br />
+                                            당신의 이야기를 들려주세요
+                                        </div>
+                                    </div>
+                                )}
+                                
                                 {loadingDiary ? (
                                     <ChatLoadingSkeleton />
                                 ) : aiChatMessages.length > 0 ? (
