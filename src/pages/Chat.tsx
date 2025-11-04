@@ -671,7 +671,7 @@ export default function Chat() {
                                     width: '100%',
                                     padding: '12px 20px',
                                     borderRadius: 10,
-                                    border: 'none',
+                                    border: '2px solid rgba(255, 255, 255, 0.5)',
                                     background: savingToDiary 
                                         ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.5) 0%, rgba(5, 150, 105, 0.5) 100%)'
                                         : 'linear-gradient(135deg, #10b981 0%, #059669 100%)',

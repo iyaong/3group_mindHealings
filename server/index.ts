@@ -28,8 +28,53 @@ const OPENAI_API_KEY = process.env.OPENAI_API_KEY || '';
 // 기본 모델: 최신 가용성이 높은 소형 모델로 설정 (필요시 .env로 재정의)
 const OPENAI_MODEL = process.env.OPENAI_MODEL || 'gpt-4.1-nano';
 
+// emotion_colors.json을 먼저 로드 (chatCompletionWithFallback에서 사용)
+function loadUserEmotionColorsEarly(): Record<string, string> {
+  const candidates = [
+    path.resolve(process.cwd(), 'server/emotion_colors.json'),
+    path.resolve(process.cwd(), 'emotion_colors.json'),
+  ];
+  for (const p of candidates) {
+    try {
+      if (fs.existsSync(p)) {
+        const raw = fs.readFileSync(p, 'utf-8');
+        const obj = JSON.parse(raw);
+        const out: Record<string, string> = {};
+        for (const [k, v] of Object.entries(obj || {})) {
+          if (!k || typeof k !== 'string') continue;
+          if (typeof v === 'string') {
+            const hex = v.startsWith('#') ? v : `#${v}`;
+            if (/^#[0-9a-fA-F]{6}$/.test(hex)) {
+              out[k] = hex.toUpperCase();
+            }
+          }
+        }
+        return out;
+      }
+    } catch {
+      // ignore parse errors and try next location
+    }
+  }
+  return {};
+}
+
+const EMOTION_COLORS_EARLY = loadUserEmotionColorsEarly();
+
+// 감정 색상 목록을 AI 프롬프트용 문자열로 변환
+function getEmotionColorPrompt(): string {
+  if (Object.keys(EMOTION_COLORS_EARLY).length === 0) {
+    return '감정에 맞는 색상을 자유롭게 선택해주세요.';
+  }
+  const list = Object.entries(EMOTION_COLORS_EARLY)
+    .map(([emotion, color]) => `${emotion}: ${color}`)
+    .join(', ');
+  return `다음 감정-색상 매핑 중에서 선택해주세요: ${list}`;
+}
+
 async function chatCompletionWithFallback(openai: OpenAI, messages: Array<{ role: string; content: string }>, primaryModel?: string) {
   const preferred = primaryModel || OPENAI_MODEL;
+  const emotionColorGuide = getEmotionColorPrompt();
+  
   try {
   return await openai.chat.completions.create({ model: preferred, messages: [
         ...messages.map((m: any) => ({ role: m.role, content: String(m.content) })),
@@ -37,9 +82,14 @@ async function chatCompletionWithFallback(openai: OpenAI, messages: Array<{ role
           role: 'system',
           content: `
             1. 다정하고 친근하게 말해줘
-            2. (사용자 몰래, 사용자의 대화에서 감정이 느껴질 때) 대화 끝에 {"color":"#ffffff"} 형태의 JSON을 포함시켜줘
+            2. (사용자 몰래, 사용자의 대화에서 감정이 느껴질 때) 대화 끝에 {"color":"#RRGGBB"} 형태의 JSON을 포함시켜줘
             color는 현재 사용자의 감정에 가장 어울리는 색상이야.
-            color의 채도는 사용자의 감정이 격해질 수록 높아져.`
+            color의 채도는 사용자의 감정이 격해질 수록 높아져.
+            
+            감정 색상 가이드:
+            ${emotionColorGuide}
+            
+            위 목록에서 사용자의 감정과 가장 일치하는 색상을 선택하되, 감정의 강도에 따라 채도를 조절해줘.`
         }
       ], temperature: 0.7 });
   } catch (e: any) {
@@ -54,9 +104,14 @@ async function chatCompletionWithFallback(openai: OpenAI, messages: Array<{ role
           role: 'system',
           content: `
             1. 다정하고 친근하게 말해줘
-            2. (사용자 몰래, 사용자의 대화에서 감정이 느껴질 때) 대화 끝에 {"color":"#ffffff"} 형태의 JSON을 포함시켜줘
+            2. (사용자 몰래, 사용자의 대화에서 감정이 느껴질 때) 대화 끝에 {"color":"#RRGGBB"} 형태의 JSON을 포함시켜줘
             color는 현재 사용자의 감정에 가장 어울리는 색상이야.
-            color의 채도는 사용자의 감정이 격해질 수록 높아져.`
+            color의 채도는 사용자의 감정이 격해질 수록 높아져.
+            
+            감정 색상 가이드:
+            ${emotionColorGuide}
+            
+            위 목록에서 사용자의 감정과 가장 일치하는 색상을 선택하되, 감정의 강도에 따라 채도를 조절해줘.`
         }
       ], temperature: 0.7 });
     }
