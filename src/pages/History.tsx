@@ -15,17 +15,46 @@ export default function History() {
   const [chartDays, setChartDays] = useState(7);
   const [userTitle, setUserTitle] = useState('');
 
-  // 캐시된 칭호 로드
+  // 캐시된 칭호 로드 및 실시간 업데이트
   useEffect(() => {
-    const cached = localStorage.getItem(CACHE_KEY);
-    if (cached) {
-      try {
-        const { title } = JSON.parse(cached);
-        setUserTitle(title);
-      } catch (e) {
-        // 캐시 파싱 오류 시 무시
+    const loadTitle = () => {
+      const cached = localStorage.getItem(CACHE_KEY);
+      if (cached) {
+        try {
+          const { title } = JSON.parse(cached);
+          setUserTitle(title);
+        } catch (e) {
+          // 캐시 파싱 오류 시 무시
+        }
       }
-    }
+    };
+
+    // 초기 로드
+    loadTitle();
+
+    // storage 이벤트 리스너 (다른 탭이나 컴포넌트에서 변경 시)
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === CACHE_KEY) {
+        loadTitle();
+      }
+    };
+
+    // 커스텀 이벤트 리스너 (같은 탭 내 변경 감지)
+    const handleCustomStorageChange = () => {
+      loadTitle();
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    window.addEventListener('titleUpdated', handleCustomStorageChange);
+
+    // 주기적으로 체크 (폴링 - 1초마다)
+    const interval = setInterval(loadTitle, 1000);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('titleUpdated', handleCustomStorageChange);
+      clearInterval(interval);
+    };
   }, []);
 
   // 인증 확인

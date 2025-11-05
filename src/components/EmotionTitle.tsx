@@ -1,5 +1,6 @@
 // EmotionTitle.tsx - 감정 칭호 컴포넌트
 import { useEffect, useState, useRef } from 'react';
+import Toast from './Toast';
 
 const CACHE_KEY = 'emotion_title_cache';
 const CACHE_DURATION = 1000 * 60 * 60; // 1시간
@@ -8,7 +9,10 @@ export default function EmotionTitle() {
   const [title, setTitle] = useState('');
   const [loading, setLoading] = useState(true);
   const [regenerating, setRegenerating] = useState(false);
+  const [showToast, setShowToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
   const isFetchingRef = useRef(false);
+  const previousTitleRef = useRef<string>('');
 
   useEffect(() => {
     // 캐시된 칭호 먼저 로드
@@ -20,6 +24,7 @@ export default function EmotionTitle() {
         
         if (!isExpired) {
           setTitle(cachedTitle);
+          previousTitleRef.current = cachedTitle; // 초기 칭호 저장
           setLoading(false);
           return;
         }
@@ -49,6 +54,14 @@ export default function EmotionTitle() {
         const data = await res.json();
         if (data.ok) {
           const newTitle = data.title || '감정 탐험가';
+          
+          // 칭호가 변경되었는지 확인 (첫 로드가 아닌 경우에만)
+          if (previousTitleRef.current && previousTitleRef.current !== newTitle) {
+            setToastMessage(`새로운 칭호를 받았습니다: 🏆 ${newTitle}`);
+            setShowToast(true);
+          }
+          
+          previousTitleRef.current = newTitle;
           setTitle(newTitle);
           
           // 캐시 저장
@@ -56,6 +69,9 @@ export default function EmotionTitle() {
             title: newTitle,
             timestamp: Date.now()
           }));
+
+          // 커스텀 이벤트 발생 (다른 컴포넌트에서 감지 가능)
+          window.dispatchEvent(new Event('titleUpdated'));
         }
       }
     } catch (e) {
@@ -69,6 +85,9 @@ export default function EmotionTitle() {
 
   const regenerateTitle = async () => {
     setRegenerating(true);
+    
+    // 현재 칭호를 previousTitleRef에 저장 (변경 감지용)
+    previousTitleRef.current = title;
     
     // 캐시 삭제
     localStorage.removeItem(CACHE_KEY);
@@ -204,6 +223,16 @@ export default function EmotionTitle() {
           감정 특성을 한 문구로 표현했습니다
         </div>
       </div>
+
+      {/* 칭호 변경 토스트 */}
+      {showToast && (
+        <Toast
+          message={toastMessage}
+          type="success"
+          duration={4000}
+          onClose={() => setShowToast(false)}
+        />
+      )}
 
       <style>{`
         @keyframes float {
