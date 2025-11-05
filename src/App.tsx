@@ -10,6 +10,7 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import OrbShowcase from './pages/OrbShowcase';
 import History from './pages/History';
+import Goals from './components/Goals';
 
 
 export default function App() {
@@ -26,6 +27,7 @@ export default function App() {
           <Route path="/register" element={<Register />} />
           <Route path="/orb-showcase" element={<OrbShowcase />} />
           <Route path="/history" element={<History />} />
+          <Route path="/goals" element={<Goals />} />
         </Routes>
       </div>
     </Router>

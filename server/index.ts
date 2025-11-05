@@ -755,6 +755,324 @@ app.get('/api/emotion/insights', authMiddleware, async (req: any, res) => {
   }
 });
 
+// =====================
+// 감정 목표 설정 및 추적 API
+// =====================
+
+// 목표 생성 (감정 목표 + 일반 스케줄 목표)
+app.post('/api/goals', authMiddleware, async (req: any, res) => {
+  try {
+    const userId = req.user.sub;
+    const { category, type, targetValue, duration, description, dueDate, priority, tags } = req.body;
+
+    // category: 'emotion' (감정 목표) 또는 'schedule' (일반 스케줄 목표)
+    const goalCategory = category || 'emotion';
+
+    if (goalCategory === 'emotion') {
+      // 감정 목표 검증
+      if (!type || !targetValue || !duration) {
+        return res.status(400).json({ 
+          ok: false, 
+          message: '필수 필드가 누락되었습니다.' 
+        });
+      }
+    } else if (goalCategory === 'schedule') {
+      // 일반 스케줄 목표 검증
+      if (!description || !dueDate) {
+        return res.status(400).json({ 
+          ok: false, 
+          message: '일정 목표는 설명과 마감일이 필요합니다.' 
+        });
+      }
+    }
+
+    const client = await getClient();
+    const db = client.db(DB_NAME);
+
+    let goal: any = {
+      userId,
+      category: goalCategory,
+      description: description || '',
+      status: 'active', // 'active', 'completed', 'failed', 'cancelled'
+      createdAt: new Date(),
+      startDate: new Date()
+    };
+
+    if (goalCategory === 'emotion') {
+      // 감정 목표 필드
+      goal.type = type; // 'positiveRate', 'sessionCount', 'averageIntensity', 'specificEmotion'
+      goal.targetValue = Number(targetValue);
+      goal.currentValue = 0;
+      goal.duration = Number(duration);
+      goal.progress = 0;
+      goal.endDate = new Date(Date.now() + duration * 24 * 60 * 60 * 1000);
+    } else {
+      // 일반 스케줄 목표 필드
+      goal.title = req.body.title || description.substring(0, 30);
+      goal.dueDate = new Date(dueDate);
+      goal.priority = priority || 'medium'; // 'low', 'medium', 'high'
+      goal.tags = tags || [];
+      goal.isCompleted = false;
+      goal.completedAt = null;
+    }
+
+    const result = await db.collection('goals').insertOne(goal);
+
+    console.log(`🎯 목표 생성: userId=${userId}, category=${goalCategory}, type=${type || 'schedule'}`);
+
+    res.json({
+      ok: true,
+      goal: { _id: result.insertedId, ...goal }
+    });
+
+  } catch (e: any) {
+    console.error('목표 생성 오류:', e);
+    res.status(500).json({ 
+      ok: false, 
+      error: '목표를 생성할 수 없습니다.',
+      message: e.message 
+    });
+  }
+});
+
+// 목표 목록 조회
+app.get('/api/goals', authMiddleware, async (req: any, res) => {
+  try {
+    const userId = req.user.sub;
+    const status = req.query.status; // 'active', 'completed', etc.
+    const category = req.query.category; // 'emotion', 'schedule'
+
+    const client = await getClient();
+    const db = client.db(DB_NAME);
+
+    const query: any = { userId };
+    if (status) query.status = status;
+    if (category) query.category = category;
+
+    const goals = await db.collection('goals')
+      .find(query)
+      .sort({ createdAt: -1 })
+      .toArray();
+
+    // 감정 목표의 진행률 업데이트
+    for (const goal of goals) {
+      if (goal.category === 'emotion') {
+        await updateGoalProgress(db, goal);
+      }
+    }
+
+    res.json({
+      ok: true,
+      goals
+    });
+
+  } catch (e: any) {
+    console.error('목표 조회 오류:', e);
+    res.status(500).json({ 
+      ok: false, 
+      error: '목표를 조회할 수 없습니다.',
+      message: e.message 
+    });
+  }
+});
+
+// 목표 진행률 업데이트 함수
+async function updateGoalProgress(db: any, goal: any) {
+  try {
+    const userId = goal.userId;
+    const startDate = new Date(goal.startDate);
+    const endDate = new Date(goal.endDate);
+    const now = new Date();
+
+    // 목표 기간이 지났는지 확인
+    if (now > endDate && goal.status === 'active') {
+      const achieved = goal.currentValue >= goal.targetValue;
+      await db.collection('emotion_goals').updateOne(
+        { _id: goal._id },
+        { 
+          $set: { 
+            status: achieved ? 'completed' : 'failed',
+            completedAt: now
+          } 
+        }
+      );
+      goal.status = achieved ? 'completed' : 'failed';
+      return;
+    }
+
+    // 현재 값 계산
+    let currentValue = 0;
+
+    switch (goal.type) {
+      case 'positiveRate': {
+        // 긍정률 목표
+        const sessions = await db.collection('diary_sessions')
+          .find({
+            userId,
+            mood: { $exists: true, $ne: null },
+            createdAt: { $gte: startDate, $lte: now }
+          })
+          .toArray();
+
+        if (sessions.length > 0) {
+          const positiveEmotions = ['기쁨', '행복', '사랑', '애정', '평온', '안도', '희망', '기대', '만족', '감사'];
+          const positiveCount = sessions.filter(s => 
+            positiveEmotions.includes(s.mood?.emotion)
+          ).length;
+          currentValue = Math.round((positiveCount / sessions.length) * 100);
+        }
+        break;
+      }
+
+      case 'sessionCount': {
+        // 대화 횟수 목표
+        const count = await db.collection('diary_sessions')
+          .countDocuments({
+            userId,
+            createdAt: { $gte: startDate, $lte: now }
+          });
+        currentValue = count;
+        break;
+      }
+
+      case 'averageIntensity': {
+        // 평균 감정 강도 목표
+        const sessions = await db.collection('diary_sessions')
+          .find({
+            userId,
+            mood: { $exists: true, $ne: null },
+            createdAt: { $gte: startDate, $lte: now }
+          })
+          .toArray();
+
+        if (sessions.length > 0) {
+          const totalIntensity = sessions.reduce((sum, s) => {
+            const intensity = s.enhancedMood?.primary?.intensity || s.mood.score * 100;
+            return sum + intensity;
+          }, 0);
+          currentValue = Math.round(totalIntensity / sessions.length);
+        }
+        break;
+      }
+
+      case 'specificEmotion': {
+        // 특정 감정 횟수 목표
+        const count = await db.collection('diary_sessions')
+          .countDocuments({
+            userId,
+            'mood.emotion': goal.targetEmotion,
+            createdAt: { $gte: startDate, $lte: now }
+          });
+        currentValue = count;
+        break;
+      }
+    }
+
+    // 진행률 계산
+    const progress = Math.min(100, Math.round((currentValue / goal.targetValue) * 100));
+
+    // DB 업데이트
+    await db.collection('emotion_goals').updateOne(
+      { _id: goal._id },
+      { 
+        $set: { 
+          currentValue,
+          progress,
+          lastUpdated: now
+        } 
+      }
+    );
+
+    goal.currentValue = currentValue;
+    goal.progress = progress;
+
+  } catch (e) {
+    console.error('목표 진행률 업데이트 오류:', e);
+  }
+}
+
+// 목표 삭제
+app.delete('/api/goals/:goalId', authMiddleware, async (req: any, res) => {
+  try {
+    const userId = req.user.sub;
+    const { goalId } = req.params;
+
+    const client = await getClient();
+    const db = client.db(DB_NAME);
+
+    const result = await db.collection('goals').deleteOne({
+      _id: new ObjectId(goalId),
+      userId
+    });
+
+    if (result.deletedCount === 0) {
+      return res.status(404).json({ 
+        ok: false, 
+        message: '목표를 찾을 수 없습니다.' 
+      });
+    }
+
+    res.json({ ok: true });
+
+  } catch (e: any) {
+    console.error('목표 삭제 오류:', e);
+    res.status(500).json({ 
+      ok: false, 
+      error: '목표를 삭제할 수 없습니다.',
+      message: e.message 
+    });
+  }
+});
+
+// 목표 상태 변경 (완료/취소 등)
+app.patch('/api/goals/:goalId', authMiddleware, async (req: any, res) => {
+  try {
+    const userId = req.user.sub;
+    const { goalId } = req.params;
+    const { status, isCompleted } = req.body;
+
+    const client = await getClient();
+    const db = client.db(DB_NAME);
+
+    const updateData: any = {};
+    
+    if (status !== undefined) {
+      updateData.status = status;
+      if (status === 'completed' || status === 'cancelled') {
+        updateData.completedAt = new Date();
+      }
+    }
+    
+    if (isCompleted !== undefined) {
+      updateData.isCompleted = isCompleted;
+      updateData.completedAt = isCompleted ? new Date() : null;
+      updateData.status = isCompleted ? 'completed' : 'active';
+    }
+
+    const result = await db.collection('goals').updateOne(
+      { _id: new ObjectId(goalId), userId },
+      { $set: updateData }
+    );
+
+    if (result.matchedCount === 0) {
+      return res.status(404).json({ 
+        ok: false, 
+        message: '목표를 찾을 수 없습니다.' 
+      });
+    }
+
+    res.json({ ok: true });
+
+  } catch (e: any) {
+    console.error('목표 상태 변경 오류:', e);
+    res.status(500).json({ 
+      ok: false, 
+      error: '목표 상태를 변경할 수 없습니다.',
+      message: e.message 
+    });
+  }
+});
+
 app.get('/api/health', async (_req, res) => {
   try {
     const client = await getClient();

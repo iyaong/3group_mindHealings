@@ -1379,10 +1379,82 @@ export default function Diary() {
             </aside>
 
             {/* 우측: 대화 + 배경색 */}
-            <main className="diary-main" style={{ padding: 16, boxSizing: 'border-box' }}>
+            <main className="diary-main" style={{ padding: 16, boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: 12 }}>
                 {activeTab === 'ai' ? (
-                    // AI 대화 탭 - 기존 UI 유지
-                    <div style={{ ...bgStyle, border: '1px solid #e5e7eb', borderRadius: 12, minHeight: '70vh', padding: 12, position: 'relative', boxSizing: 'border-box' }}>
+                    <>
+                        {/* 히스토리 & 목표 버튼 섹션 */}
+                        <div style={{ 
+                            display: 'flex', 
+                            gap: 12, 
+                            marginBottom: 4
+                        }}>
+                            <button
+                                onClick={() => navigate('/history')}
+                                style={{
+                                    flex: 1,
+                                    padding: '16px 24px',
+                                    border: '2px solid #3b82f6',
+                                    borderRadius: 16,
+                                    background: 'linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%)',
+                                    color: '#1e40af',
+                                    fontSize: 16,
+                                    fontWeight: 700,
+                                    cursor: 'pointer',
+                                    transition: 'all 0.3s ease',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    gap: 10,
+                                    boxShadow: '0 4px 12px rgba(59, 130, 246, 0.2)'
+                                }}
+                                onMouseEnter={(e) => {
+                                    e.currentTarget.style.transform = 'translateY(-4px)';
+                                    e.currentTarget.style.boxShadow = '0 8px 20px rgba(59, 130, 246, 0.3)';
+                                }}
+                                onMouseLeave={(e) => {
+                                    e.currentTarget.style.transform = 'translateY(0)';
+                                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(59, 130, 246, 0.2)';
+                                }}
+                            >
+                                <span style={{ fontSize: 24 }}>📊</span>
+                                <span>히스토리</span>
+                            </button>
+                            
+                            <button
+                                onClick={() => navigate('/goals')}
+                                style={{
+                                    flex: 1,
+                                    padding: '16px 24px',
+                                    border: '2px solid #8b5cf6',
+                                    borderRadius: 16,
+                                    background: 'linear-gradient(135deg, #ede9fe 0%, #ddd6fe 100%)',
+                                    color: '#6d28d9',
+                                    fontSize: 16,
+                                    fontWeight: 700,
+                                    cursor: 'pointer',
+                                    transition: 'all 0.3s ease',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    gap: 10,
+                                    boxShadow: '0 4px 12px rgba(139, 92, 246, 0.2)'
+                                }}
+                                onMouseEnter={(e) => {
+                                    e.currentTarget.style.transform = 'translateY(-4px)';
+                                    e.currentTarget.style.boxShadow = '0 8px 20px rgba(139, 92, 246, 0.3)';
+                                }}
+                                onMouseLeave={(e) => {
+                                    e.currentTarget.style.transform = 'translateY(0)';
+                                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(139, 92, 246, 0.2)';
+                                }}
+                            >
+                                <span style={{ fontSize: 24 }}>🎯</span>
+                                <span>목표</span>
+                            </button>
+                        </div>
+
+                        {/* AI 대화 탭 - 기존 UI 유지 */}
+                        <div style={{ ...bgStyle, border: '1px solid #e5e7eb', borderRadius: 12, minHeight: '70vh', padding: 12, position: 'relative', boxSizing: 'border-box', flex: 1 }}>
                         {/* 감정 오브: 채팅창 왼쪽 상단 고정, 크게 */}
                         <div style={{ 
                             position: 'absolute', 
@@ -1568,7 +1640,7 @@ export default function Diary() {
                             )}
                         </div>
 
-                        <div className="diary-chat-area" style={{ border: '1px solid #e5e7eb', borderRadius: 12, height: '55vh', maxHeight: '55vh', padding: 12, overflowY: 'auto', background: 'rgba(255,255,255,0.75)', width: 'min(100%, 1200px)', margin: '96px auto 0', boxSizing: 'border-box', position: 'relative' }}>
+                        <div className="diary-chat-area" style={{ border: '1px solid #e5e7eb', borderRadius: 12, height: '55vh', maxHeight: '55vh', padding: 12, overflowY: 'auto', background: 'rgba(255,255,255,0.75)', width: 'min(100%, 1200px)', margin: '150px auto 0', boxSizing: 'border-box', position: 'relative' }}>
                             {/* 환영 메시지 오버레이 (AI 탭에서만) */}
                             {activeTab === 'ai' && showWelcomeMessage && messages.length === 0 && (
                                 <div style={{
@@ -1625,7 +1697,8 @@ export default function Diary() {
                                 {sending ? '전송중…' : '전송'}
                             </button>
                         </form>
-                    </div>
+                        </div>
+                    </>
                 ) : (
                     // 온라인 채팅 탭 - 상단: 온라인 대화 기록 (읽기 전용), 하단: AI와 대화
                     <div style={{ ...bgStyle, border: '1px solid #e5e7eb', borderRadius: 12, height: 'calc(100vh - 88px)', padding: 16, boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: 16 }}>

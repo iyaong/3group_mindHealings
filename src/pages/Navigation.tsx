@@ -67,7 +67,7 @@ export default function Navigation() {
                 토닥톡
             </h1>
 
-            {/* 가운데 네비게이션: 다이어리 / 챗온 / 히스토리 */}
+            {/* 가운데 네비게이션: 다이어리 / 챗온 */}
             <div style={{ margin: "0 auto", display: "flex", gap: 16 }}>
                 <NavLink
                     to="/diary"
@@ -96,20 +96,6 @@ export default function Navigation() {
                     })}
                 >
                     챗온
-                </NavLink>
-                <NavLink
-                    to="/history"
-                    style={({ isActive }) => ({
-                        padding: "6px 10px",
-                        borderRadius: 8,
-                        textDecoration: "none",
-                        border: isActive ? "1px solid #2563eb" : "1px solid transparent",
-                        background: isActive ? "#eef2ff" : "transparent",
-                        color: isActive ? "#1e3a8a" : "#111",
-                        fontWeight: 600,
-                    })}
-                >
-                    📊 히스토리
                 </NavLink>
             </div>
 
