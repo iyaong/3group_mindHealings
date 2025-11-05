@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import EmotionHistoryChart from '../components/EmotionHistoryChart';
+import EmotionInsights from '../components/EmotionInsights';
 
 export default function History() {
   const navigate = useNavigate();
@@ -235,6 +236,16 @@ export default function History() {
               description="어떤 감정을 가장 많이 느꼈는지 한눈에 파악하세요"
             />
           </div>
+        </div>
+
+        {/* 감정 인사이트 영역 - 맨 아래로 이동 */}
+        <div style={{
+          background: 'rgba(255, 255, 255, 0.95)',
+          borderRadius: 16,
+          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.12)',
+          overflow: 'hidden'
+        }}>
+          <EmotionInsights days={30} />
         </div>
 
         {/* 푸터 안내 */}

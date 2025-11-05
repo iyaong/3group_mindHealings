@@ -123,7 +123,7 @@ export default function Diary() {
     const [summary, setSummary] = useState<string>(''); // 대화 요약
     const [isSummarizing, setIsSummarizing] = useState<boolean>(false); // 요약 중 상태
     const [memo, setMemo] = useState<string>(''); // 온라인 채팅 메모
-    const hasSummarizedRef = useRef<boolean>(false); // 이미 요약 실행했는지 플래그 (ref로 변경)
+    const hasSummarizedSessionRef = useRef<string | null>(null); // 이미 요약 실행한 세션 ID (중복 방지)
     const bottomRef = useRef<HTMLDivElement | null>(null);
     const textareaRef = useRef<HTMLTextAreaElement | null>(null); // textarea 참조
 
@@ -132,14 +132,22 @@ export default function Diary() {
         if (!user) navigate('/login');
     }, [loading, user, navigate]);
 
-    // Enter 키 전역 리스너: textarea가 포커스되지 않은 상태에서 Enter 누르면 포커스
+    // Enter 키 전역 리스너: AI 대화 탭에서만 작동, textarea가 포커스되지 않은 상태에서 Enter 누르면 포커스
     useEffect(() => {
+        // AI 대화 탭이 아니면 리스너 등록하지 않음
+        if (activeTab !== 'ai') return;
+        
         const handleGlobalKeyDown = (e: KeyboardEvent) => {
             // Enter 키이고, textarea가 이미 포커스되어 있지 않으면
             if (e.key === 'Enter' && document.activeElement !== textareaRef.current) {
-                // input, textarea, button 등이 아닌 곳에서만 동작
+                // input, textarea, button, contenteditable 등이 아닌 곳에서만 동작
                 const target = e.target as HTMLElement;
-                if (target.tagName !== 'INPUT' && target.tagName !== 'TEXTAREA' && target.tagName !== 'BUTTON') {
+                const isEditable = target.tagName === 'INPUT' || 
+                                   target.tagName === 'TEXTAREA' || 
+                                   target.tagName === 'BUTTON' ||
+                                   target.isContentEditable;
+                
+                if (!isEditable) {
                     e.preventDefault();
                     textareaRef.current?.focus();
                 }
@@ -148,7 +156,7 @@ export default function Diary() {
 
         window.addEventListener('keydown', handleGlobalKeyDown);
         return () => window.removeEventListener('keydown', handleGlobalKeyDown);
-    }, []);
+    }, [activeTab]);
 
     const bgStyle = useMemo(() => {
         const c = mood?.color || '#f4f4f5';
@@ -527,9 +535,9 @@ export default function Diary() {
             // pending 세션 ID 설정 (onlineList 업데이트 후 자동 선택됨)
             setPendingOnlineSessionId(state.sessionId);
             
-            // 자동 요약 플래그가 있고 아직 요약하지 않았으면 요약 시작
-            if (state.autoSummarize && state.sessionId && !hasSummarizedRef.current) {
-                hasSummarizedRef.current = true; // 중복 실행 방지
+            // 자동 요약 플래그가 있고 아직 이 세션을 요약하지 않았으면 요약 시작
+            if (state.autoSummarize && state.sessionId && hasSummarizedSessionRef.current !== state.sessionId) {
+                hasSummarizedSessionRef.current = state.sessionId; // 중복 실행 방지 (세션 ID 저장)
                 // 세션 로딩 후 요약 실행 (약간의 지연)
                 setTimeout(() => {
                     void summarizeConversation(state.sessionId!);
@@ -546,33 +554,8 @@ export default function Diary() {
     }, [location.state]);
     
     // 탭 전환 또는 세션 선택 시 mood 업데이트 (오브 색상 동기화)
-    // 깜빡임 방지: mood가 없을 때도 이전 색상 유지
-    useEffect(() => {
-        if (!selected) {
-            if (import.meta.env.DEV) console.log('🔄 No session selected, keeping previous mood');
-            // mood를 null로 설정하지 않고 이전 값 유지 (깜빡임 방지)
-            return;
-        }
-        
-        // 현재 탭에 맞는 목록에서 선택된 세션 찾기
-        const currentList = activeTab === 'ai' ? list : onlineList;
-        const currentSession = currentList.find(s => s._id === selected);
-        
-        if (currentSession?.mood) {
-            if (import.meta.env.DEV) {
-                console.log('🔄 Tab/Session changed, updating mood for orb:', {
-                    tab: activeTab,
-                    sessionId: selected,
-                    emotion: currentSession.mood.emotion,
-                    color: currentSession.mood.color
-                });
-            }
-            setMood(currentSession.mood);
-        } else {
-            // mood가 없어도 이전 색상 유지 (깜빡임 방지)
-            if (import.meta.env.DEV) console.log('🔄 Session has no mood, keeping previous color');
-        }
-    }, [activeTab, selected, list, onlineList]);
+    // loadSession이 이미 mood를 업데이트하므로 이 useEffect는 제거 가능
+    // (중복 로직 제거로 깜빡임 방지)
     
     // onlineList 업데이트 시 pending 세션 자동 선택
     useEffect(() => {
@@ -640,9 +623,13 @@ export default function Diary() {
         bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages, aiChatMessages, sending]);
 
-    // 메모 자동 저장 (온라인 채팅 세션, 1초 debounce)
+    // 메모 자동 저장 (온라인 채팅 세션만, 1초 debounce)
     useEffect(() => {
+        // 온라인 세션이 아니거나 선택된 세션이 없으면 저장하지 않음
         if (!selected || currentSessionType !== 'online') return;
+        
+        // 빈 메모는 저장하지 않음 (초기 로드 시 불필요한 API 호출 방지)
+        if (memo === '') return;
         
         const timer = setTimeout(async () => {
             try {
@@ -1142,6 +1129,7 @@ export default function Diary() {
                                                     return (
                                                         <div
                                                             key={item._id}
+                                                            data-session-id={item._id}
                                                             style={{
                                                                 padding: '6px 8px',
                                                                 borderRadius: 8,
@@ -1581,8 +1569,8 @@ export default function Diary() {
                         </div>
 
                         <div className="diary-chat-area" style={{ border: '1px solid #e5e7eb', borderRadius: 12, height: '55vh', maxHeight: '55vh', padding: 12, overflowY: 'auto', background: 'rgba(255,255,255,0.75)', width: 'min(100%, 1200px)', margin: '96px auto 0', boxSizing: 'border-box', position: 'relative' }}>
-                            {/* 환영 메시지 오버레이 */}
-                            {showWelcomeMessage && messages.length === 0 && (
+                            {/* 환영 메시지 오버레이 (AI 탭에서만) */}
+                            {activeTab === 'ai' && showWelcomeMessage && messages.length === 0 && (
                                 <div style={{
                                     position: 'absolute',
                                     top: 0,

@@ -586,6 +586,175 @@ function calculateEmotionStats(sessions: any[]) {
   };
 }
 
+// =====================
+// 감정 인사이트 분석 API
+// =====================
+
+app.get('/api/emotion/insights', authMiddleware, async (req: any, res) => {
+  try {
+    const userId = req.user.sub;
+    const days = Math.min(30, Math.max(7, Number(req.query.days) || 30));
+    
+    const client = await getClient();
+    const db = client.db(DB_NAME);
+    
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - days);
+    
+    // mood가 있는 세션만 조회 (감정 분석이 완료된 세션)
+    const sessions = await db.collection('diary_sessions')
+      .find({
+        userId,
+        createdAt: { $gte: startDate },
+        mood: { $exists: true, $ne: null } // mood 필드가 존재하고 null이 아닌 것만
+      })
+      .sort({ createdAt: 1 })
+      .toArray();
+    
+    console.log(`📊 인사이트 조회: userId=${userId}, days=${days}, 감정 분석 완료 세션=${sessions.length}`);
+    
+    // 감정 분석이 완료된 세션이 없으면 조기 반환
+    if (sessions.length === 0) {
+      return res.json({
+        ok: true,
+        insights: {
+          summary: '아직 감정 분석이 완료된 대화가 없습니다. AI와 대화를 나누고 "감정 분석" 버튼을 눌러보세요!',
+          patterns: [],
+          recommendations: [],
+          weeklyTrend: null,
+          bestDay: null,
+          worstDay: null,
+          totalSessions: 0,
+          analyzedDays: days
+        }
+      });
+    }
+    
+    // 감정 데이터 준비
+    const emotionData = sessions.map(s => ({
+      date: new Date(s.createdAt),
+      emotion: s.mood.emotion,
+      score: s.mood.score,
+      intensity: s.enhancedMood?.primary?.intensity || s.mood.score * 100,
+      dayOfWeek: new Date(s.createdAt).getDay()
+    }));
+    
+    // 요일별 감정 집계
+    const dayStats: { [key: number]: { count: number; totalIntensity: number; emotions: string[] } } = {};
+    for (let i = 0; i < 7; i++) {
+      dayStats[i] = { count: 0, totalIntensity: 0, emotions: [] };
+    }
+    
+    emotionData.forEach(item => {
+      const day = item.dayOfWeek;
+      dayStats[day].count++;
+      dayStats[day].totalIntensity += item.intensity;
+      dayStats[day].emotions.push(item.emotion);
+    });
+    
+    // 요일 이름 매핑
+    const dayNames = ['일요일', '월요일', '화요일', '수요일', '목요일', '금요일', '토요일'];
+    
+    // 최고/최악의 요일 찾기
+    let bestDay: { day: string; average: number } | null = null;
+    let worstDay: { day: string; average: number } | null = null;
+    let maxAvg = -1;
+    let minAvg = 101;
+    
+    Object.keys(dayStats).forEach(dayKey => {
+      const day = parseInt(dayKey);
+      const stat = dayStats[day];
+      if (stat.count > 0) {
+        const avg = stat.totalIntensity / stat.count;
+        if (avg > maxAvg) {
+          maxAvg = avg;
+          bestDay = { day: dayNames[day], average: Math.round(avg) };
+        }
+        if (avg < minAvg) {
+          minAvg = avg;
+          worstDay = { day: dayNames[day], average: Math.round(avg) };
+        }
+      }
+    });
+    
+    // 주간 추세 계산
+    const weeklyGroups: { [week: string]: number[] } = {};
+    emotionData.forEach(item => {
+      const weekKey = `${item.date.getFullYear()}-W${Math.ceil(item.date.getDate() / 7)}`;
+      if (!weeklyGroups[weekKey]) weeklyGroups[weekKey] = [];
+      weeklyGroups[weekKey].push(item.intensity);
+    });
+    
+    const weeklyAverages = Object.values(weeklyGroups).map(intensities => {
+      return Math.round(intensities.reduce((a, b) => a + b, 0) / intensities.length);
+    });
+    
+    let weeklyTrend = 'stable';
+    if (weeklyAverages.length >= 2) {
+      const lastWeek = weeklyAverages[weeklyAverages.length - 1];
+      const prevWeek = weeklyAverages[weeklyAverages.length - 2];
+      if (lastWeek > prevWeek + 10) weeklyTrend = 'improving';
+      else if (lastWeek < prevWeek - 10) weeklyTrend = 'declining';
+    }
+    
+    // OpenAI로 인사이트 생성
+    const openai = new OpenAI({ apiKey: OPENAI_API_KEY });
+    
+    const bestDayText = bestDay ? `${(bestDay as any).day} (평균 강도 ${(bestDay as any).average})` : '없음';
+    const worstDayText = worstDay ? `${(worstDay as any).day} (평균 강도 ${(worstDay as any).average})` : '없음';
+    
+    const prompt = `당신은 감정 분석 전문가입니다. 다음 사용자의 ${days}일간 감정 데이터를 분석하여 인사이트를 제공하세요.
+
+데이터:
+- 총 대화 수: ${sessions.length}
+- 가장 좋았던 요일: ${bestDayText}
+- 가장 힘들었던 요일: ${worstDayText}
+- 주간 추세: ${weeklyTrend === 'improving' ? '개선 중' : weeklyTrend === 'declining' ? '하락 중' : '안정적'}
+- 주요 감정들: ${emotionData.slice(0, 10).map(e => e.emotion).join(', ')}
+
+다음 JSON 형식으로 응답하세요:
+{
+  "summary": "2-3문장으로 전체 요약",
+  "patterns": ["패턴1", "패턴2", "패턴3"] (최대 3개),
+  "recommendations": ["조언1", "조언2", "조언3"] (최대 3개)
+}
+
+친근하고 따뜻한 톤으로 작성하세요.`;
+
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [{ role: 'user', content: prompt }],
+      temperature: 0.7,
+      max_tokens: 500
+    });
+    
+    const content = completion.choices[0]?.message?.content || '{}';
+    const aiInsights = JSON.parse(content);
+    
+    res.json({
+      ok: true,
+      insights: {
+        summary: aiInsights.summary || '데이터를 분석 중입니다.',
+        patterns: aiInsights.patterns || [],
+        recommendations: aiInsights.recommendations || [],
+        weeklyTrend,
+        bestDay,
+        worstDay,
+        totalSessions: sessions.length,
+        analyzedDays: days
+      }
+    });
+    
+  } catch (e: any) {
+    console.error('감정 인사이트 생성 오류:', e);
+    res.status(500).json({ 
+      ok: false, 
+      error: '인사이트를 생성할 수 없습니다.',
+      message: e.message 
+    });
+  }
+});
+
 app.get('/api/health', async (_req, res) => {
   try {
     const client = await getClient();
