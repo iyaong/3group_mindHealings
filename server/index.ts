@@ -2151,6 +2151,313 @@ ${emotionSummary}
   }
 });
 
+// GET /api/user/emotion-recommendations - 감정 기반 활동 추천
+app.get('/api/user/emotion-recommendations', authMiddleware, async (req: any, res) => {
+  try {
+    if (!OPENAI_API_KEY) {
+      return res.status(500).json({ message: 'OPENAI_API_KEY 미설정' });
+    }
+
+    const userId = req.user.sub;
+    const client = await getClient();
+    const db = client.db(DB_NAME);
+    const sessionsCol = db.collection('diary_sessions');
+
+    // 최근 10개 세션의 감정 분석
+    const recentSessions = await sessionsCol
+      .find({ 
+        userId,
+        mood: { $exists: true, $ne: null }
+      })
+      .sort({ createdAt: -1 })
+      .limit(10)
+      .toArray();
+
+    if (recentSessions.length === 0) {
+      return res.json({
+        ok: true,
+        recommendations: [
+          {
+            category: '음악',
+            icon: '🎵',
+            title: '편안한 휴식 음악',
+            description: '스트레스를 낮춰주는 차분한 음악을 들어보세요',
+            reason: '아직 충분한 대화 데이터가 없어요'
+          },
+          {
+            category: '명상',
+            icon: '🧘',
+            title: '5분 호흡 명상',
+            description: '깊은 호흡으로 마음을 편안하게 만들어보세요',
+            reason: '기본 추천 활동입니다'
+          }
+        ]
+      });
+    }
+
+    // 감정 분포 계산 (mood 필드 사용)
+    const emotionCounts: Record<string, number> = {};
+    recentSessions.forEach(s => {
+      if (s.mood) {
+        // mood가 객체인 경우 처리 (예: { emotion: '행복', score: 85, color: '...' })
+        let moodName: string;
+        if (typeof s.mood === 'string') {
+          moodName = s.mood;
+        } else if (s.mood.emotion) {
+          moodName = s.mood.emotion; // mood 객체에서 emotion 필드 추출
+        } else if (s.mood.name) {
+          moodName = s.mood.name;
+        } else {
+          moodName = String(s.mood);
+        }
+        console.log('Processing mood:', s.mood, '→', moodName); // 디버깅
+        emotionCounts[moodName] = (emotionCounts[moodName] || 0) + 1;
+      }
+    });
+
+    console.log('Emotion counts:', emotionCounts); // 디버깅
+
+    // 가장 많은 감정 TOP 3
+    const topEmotions = Object.entries(emotionCounts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 3)
+      .map(([name]) => name);
+
+    console.log('Top emotions:', topEmotions); // 디버깅
+
+    const openai = new OpenAI({ apiKey: OPENAI_API_KEY });
+
+    // OpenAI로 맞춤형 추천 생성
+    const prompt = `당신은 감정 기반 활동 추천 전문가입니다.
+
+사용자의 최근 감정 상태:
+- 주요 감정: ${topEmotions.join(', ')}
+- 총 대화 수: ${recentSessions.length}회
+
+위 감정 상태에 맞는 활동을 5가지 추천해주세요.
+각 추천은 다음 카테고리 중 하나여야 합니다: 음악, 영화, 책, 운동, 명상, 취미, 음식
+
+다음 JSON 형식으로 정확히 응답해주세요:
+[
+  {
+    "category": "카테고리명",
+    "icon": "이모지",
+    "title": "추천 제목 (15자 이내)",
+    "description": "구체적인 설명 (30자 이내)",
+    "reason": "이 활동이 도움이 되는 이유 (40자 이내)"
+  }
+]
+
+예시:
+- 슬픔 → 위로가 되는 영화, 감성적인 음악
+- 스트레스 → 요가, ASMR, 산책
+- 행복 → 활동적인 운동, 모험 영화
+- 피곤함 → 수면 음악, 가벼운 책
+
+실용적이고 바로 실천 가능한 활동을 추천해주세요.`;
+
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [{ role: 'user', content: prompt }],
+      temperature: 0.8,
+      max_tokens: 800
+    });
+
+    const content = completion.choices[0]?.message?.content?.trim() || '[]';
+    
+    // JSON 파싱 (```json ``` 제거)
+    let recommendations: any[] = [];
+    try {
+      const jsonMatch = content.match(/\[[\s\S]*\]/);
+      if (jsonMatch) {
+        recommendations = JSON.parse(jsonMatch[0]);
+      } else {
+        recommendations = JSON.parse(content);
+      }
+    } catch (parseError) {
+      console.error('추천 파싱 오류:', parseError);
+      // 기본 추천 제공
+      recommendations = [
+        {
+          category: '음악',
+          icon: '🎵',
+          title: '힐링 플레이리스트',
+          description: '당신의 감정에 맞는 음악을 들어보세요',
+          reason: topEmotions[0] + ' 감정에 도움이 됩니다'
+        },
+        {
+          category: '명상',
+          icon: '🧘',
+          title: '마음 챙김 명상',
+          description: '10분간 깊은 호흡과 명상을 해보세요',
+          reason: '감정을 안정시키는 데 효과적입니다'
+        }
+      ];
+    }
+
+    res.json({
+      ok: true,
+      recommendations,
+      topEmotions,
+      totalSessions: recentSessions.length
+    });
+
+  } catch (e) {
+    console.error('감정 추천 생성 오류:', e);
+    res.status(500).json({ message: '감정 추천 생성 오류' });
+  }
+});
+
+// GET /api/user/emotion-prediction - 감정 예측
+app.get('/api/user/emotion-prediction', authMiddleware, async (req: any, res) => {
+  try {
+    if (!OPENAI_API_KEY) {
+      return res.status(500).json({ message: 'OPENAI_API_KEY 미설정' });
+    }
+
+    const userId = req.user.sub;
+    const client = await getClient();
+    const db = client.db(DB_NAME);
+    const sessionsCol = db.collection('diary_sessions');
+
+    // 모든 세션 조회 (최소 7개 필요)
+    const sessions = await sessionsCol
+      .find({ 
+        userId,
+        mood: { $exists: true, $ne: null },
+        createdAt: { $exists: true }
+      })
+      .sort({ createdAt: 1 })
+      .toArray();
+
+    if (sessions.length < 7) {
+      return res.json({
+        ok: true,
+        prediction: null,
+        message: '감정 예측을 위해서는 최소 7일의 대화 데이터가 필요합니다.',
+        daysNeeded: 7 - sessions.length
+      });
+    }
+
+    // 요일별 감정 패턴 분석
+    const dayOfWeekPattern: Record<number, Record<string, number>> = {};
+    const hourPattern: Record<number, Record<string, number>> = {};
+    
+    sessions.forEach(s => {
+      const date = new Date(s.createdAt);
+      const dayOfWeek = date.getDay(); // 0 = 일요일, 6 = 토요일
+      const hour = date.getHours();
+      
+      // mood 객체에서 emotion 추출
+      let moodName: string;
+      if (typeof s.mood === 'string') {
+        moodName = s.mood;
+      } else if (s.mood.emotion) {
+        moodName = s.mood.emotion;
+      } else if (s.mood.name) {
+        moodName = s.mood.name;
+      } else {
+        moodName = String(s.mood);
+      }
+
+      // 요일별 패턴
+      if (!dayOfWeekPattern[dayOfWeek]) {
+        dayOfWeekPattern[dayOfWeek] = {};
+      }
+      dayOfWeekPattern[dayOfWeek][moodName] = (dayOfWeekPattern[dayOfWeek][moodName] || 0) + 1;
+
+      // 시간대별 패턴
+      if (!hourPattern[hour]) {
+        hourPattern[hour] = {};
+      }
+      hourPattern[hour][moodName] = (hourPattern[hour][moodName] || 0) + 1;
+    });
+
+    // 각 요일별 가장 많은 감정
+    const weeklyPattern = Object.entries(dayOfWeekPattern).map(([day, emotions]) => {
+      const topEmotion = Object.entries(emotions)
+        .sort((a, b) => b[1] - a[1])[0];
+      return {
+        day: parseInt(day),
+        dayName: ['일', '월', '화', '수', '목', '금', '토'][parseInt(day)],
+        emotion: topEmotion[0],
+        count: topEmotion[1],
+        total: Object.values(emotions).reduce((a, b) => a + b, 0)
+      };
+    });
+
+    // 내일 요일 계산
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const tomorrowDayOfWeek = tomorrow.getDay();
+    const tomorrowPattern = weeklyPattern.find(p => p.day === tomorrowDayOfWeek);
+
+    const openai = new OpenAI({ apiKey: OPENAI_API_KEY });
+
+    // OpenAI로 예측 및 조언 생성
+    const prompt = `당신은 감정 예측 전문가입니다.
+
+사용자의 요일별 감정 패턴:
+${weeklyPattern.map(p => `- ${p.dayName}요일: ${p.emotion} (${p.count}/${p.total}회)`).join('\n')}
+
+내일은 ${['일', '월', '화', '수', '목', '금', '토'][tomorrowDayOfWeek]}요일입니다.
+${tomorrowPattern ? `과거 데이터에 따르면 ${tomorrowPattern.dayName}요일에는 주로 "${tomorrowPattern.emotion}" 감정을 느꼈습니다.` : ''}
+
+다음 형식으로 예측을 제공해주세요:
+{
+  "prediction": "내일 예상되는 감정 (한 단어)",
+  "confidence": 예측 신뢰도 (0-100 정수),
+  "reason": "이렇게 예측한 이유 (40자 이내)",
+  "advice": "도움이 될 조언 (50자 이내)",
+  "activities": ["추천 활동 1", "추천 활동 2", "추천 활동 3"]
+}
+
+실용적이고 긍정적인 조언을 제공해주세요.`;
+
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [{ role: 'user', content: prompt }],
+      temperature: 0.7,
+      max_tokens: 500
+    });
+
+    const content = completion.choices[0]?.message?.content?.trim() || '{}';
+    
+    // JSON 파싱
+    let prediction: any = null;
+    try {
+      const jsonMatch = content.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        prediction = JSON.parse(jsonMatch[0]);
+      } else {
+        prediction = JSON.parse(content);
+      }
+    } catch (parseError) {
+      console.error('예측 파싱 오류:', parseError);
+      // 기본 예측 제공
+      prediction = {
+        prediction: tomorrowPattern?.emotion || '평온함',
+        confidence: 70,
+        reason: '과거 패턴을 기반으로 예측했습니다',
+        advice: '오늘 하루도 당신의 감정을 잘 돌봐주세요',
+        activities: ['명상하기', '산책하기', '일기 쓰기']
+      };
+    }
+
+    res.json({
+      ok: true,
+      prediction,
+      weeklyPattern,
+      totalSessions: sessions.length,
+      tomorrowDay: ['일', '월', '화', '수', '목', '금', '토'][tomorrowDayOfWeek]
+    });
+
+  } catch (e) {
+    console.error('감정 예측 생성 오류:', e);
+    res.status(500).json({ message: '감정 예측 생성 오류' });
+  }
+});
+
 // POST /api/diary/session/:id/chat { text }
 app.post('/api/diary/session/:id/chat', authMiddleware, async (req: any, res) => {
   try {

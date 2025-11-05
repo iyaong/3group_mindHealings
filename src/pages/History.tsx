@@ -6,6 +6,8 @@ import EmotionHistoryChart from '../components/EmotionHistoryChart';
 import EmotionInsights from '../components/EmotionInsights';
 import EmotionTitle from '../components/EmotionTitle';
 import EmotionTopFive from '../components/EmotionTopFive';
+import EmotionRecommendations from '../components/EmotionRecommendations';
+import EmotionPrediction from '../components/EmotionPrediction';
 
 const CACHE_KEY = 'emotion_title_cache';
 
@@ -200,6 +202,12 @@ export default function History() {
 
         {/* 감정 TOP 5 */}
         <EmotionTopFive />
+
+        {/* AI 추천 활동 */}
+        <EmotionRecommendations />
+
+        {/* 감정 예측 */}
+        <EmotionPrediction />
 
         {/* 기간 선택 카드 */}
         <div style={{
