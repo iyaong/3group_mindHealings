@@ -266,9 +266,9 @@ export default function EmotionHistoryChart({ days = 7 }: EmotionHistoryChartPro
       )}
 
       {/* 차트 영역 */}
-      <div style={{ width: '100%', height: 300 }}>
+      <div style={{ width: '100%', height: 300, minHeight: 300, position: 'relative' }}>
         {chartType === 'area' && (
-          <ResponsiveContainer>
+          <ResponsiveContainer width="100%" height={300}>
             <AreaChart data={chartData}>
               <defs>
                 <linearGradient id="colorIntensity" x1="0" y1="0" x2="0" y2="1">
@@ -302,7 +302,7 @@ export default function EmotionHistoryChart({ days = 7 }: EmotionHistoryChartPro
         )}
 
         {chartType === 'line' && (
-          <ResponsiveContainer>
+          <ResponsiveContainer width="100%" height={300}>
             <LineChart data={chartData}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
               <XAxis 
@@ -331,7 +331,7 @@ export default function EmotionHistoryChart({ days = 7 }: EmotionHistoryChartPro
         )}
 
         {chartType === 'pie' && (
-          <ResponsiveContainer>
+          <ResponsiveContainer width="100%" height={300}>
             <PieChart>
               <Pie
                 data={pieData}
