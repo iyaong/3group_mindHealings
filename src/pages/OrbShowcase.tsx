@@ -8,6 +8,7 @@ import EmotionOrbv2 from '../components/EmotionOrbv2';
 import EmotionOrbv3 from '../components/EmotionOrbv3';
 import EmotionOrbv4 from '../components/EmotionOrbv4';
 import EmotionOrbv5 from '../components/EmotionOrbv5';
+import SiriOrb from '../components/SiriOrb';
 
 // 감정별 색상 프리셋
 const emotionPresets = [
@@ -32,7 +33,7 @@ const customColors = [
 export default function OrbShowcase() {
   const navigate = useNavigate();
   const [selectedColor, setSelectedColor] = useState('#FFD54F');
-  const [selectedOrb, setSelectedOrb] = useState<'basic' | 'v1' | 'premium' | 'v2' | 'v3' | 'v4' | 'v5'>('v5');
+  const [selectedOrb, setSelectedOrb] = useState<'basic' | 'v1' | 'premium' | 'v2' | 'v3' | 'v4' | 'v5' | 'siri'>('v5');
   const [customColor, setCustomColor] = useState('#FFD54F');
   const [orbSize, setOrbSize] = useState(280);
   const [intensity, setIntensity] = useState(1);
@@ -122,6 +123,7 @@ export default function OrbShowcase() {
               { key: 'v3' as const, label: 'V3', desc: '오로라 유리 + Bloom' },
               { key: 'v4' as const, label: 'V4 Premium', desc: 'All Features' },
               { key: 'v5' as const, label: 'V5 GSAP', desc: 'Shader + Transmission + HDRI + Post', highlight: true },
+              { key: 'siri' as const, label: 'Siri Orb', desc: '애플 스타일 실크 리본', highlight: true },
             ].map(({ key, label, desc, highlight }) => (
               <button
                 key={key}
@@ -194,7 +196,9 @@ export default function OrbShowcase() {
             <div style={{
               background: 'linear-gradient(135deg, #f8f9ff 0%, #e8eaff 100%)',
               borderRadius: 24,
-              padding: 40,
+              padding: '40px 80px',
+              width: '100%',
+              maxWidth: '1000px',
               boxShadow: 'inset 0 2px 15px rgba(102, 126, 234, 0.1)',
             }}>
               {selectedOrb === 'basic' && (
@@ -217,6 +221,11 @@ export default function OrbShowcase() {
               )}
               {selectedOrb === 'v5' && (
                 <EmotionOrbv5 color={selectedColor} size={orbSize} intensity={intensity} />
+              )}
+              {selectedOrb === 'siri' && (
+                <div style={{ width: '100%', height: '100%' }}>
+                  <SiriOrb />
+                </div>
               )}
             </div>
             
