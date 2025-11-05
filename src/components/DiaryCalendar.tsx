@@ -38,14 +38,17 @@ export default function DiaryCalendar({ sessions, onDateSelect, selectedDate, ac
   };
 
   // 날짜 클릭 핸들러
-  const handleDateChange = (value: Date | null) => {
+  const handleDateChange = (value: unknown) => {
     if (!value) {
       onDateSelect(null);
       return;
     }
     
-    const dateStr = `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, '0')}-${String(value.getDate()).padStart(2, '0')}`;
-    onDateSelect(dateStr);
+    // value가 Date인 경우만 처리
+    if (value instanceof Date) {
+      const dateStr = `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, '0')}-${String(value.getDate()).padStart(2, '0')}`;
+      onDateSelect(dateStr);
+    }
   };
 
   // 오늘 버튼 클릭
@@ -145,7 +148,7 @@ export default function DiaryCalendar({ sessions, onDateSelect, selectedDate, ac
             tileClassName={tileClassName}
             locale="ko-KR"
             calendarType="gregory"
-            formatDay={(locale, date) => String(date.getDate())}
+            formatDay={(_locale, date) => String(date.getDate())}
             next2Label={null}
             prev2Label={null}
             minDetail="month"

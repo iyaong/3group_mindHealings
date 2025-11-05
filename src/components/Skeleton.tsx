@@ -1,4 +1,5 @@
 // Skeleton.tsx — 로딩 상태를 위한 스켈레톤 UI 컴포넌트
+import React from 'react';
 import './Skeleton.css';
 
 interface SkeletonProps {
@@ -8,7 +9,7 @@ interface SkeletonProps {
     style?: React.CSSProperties;
 }
 
-export function Skeleton({ width = '100%', height = 20, borderRadius = 8, style = {} }: SkeletonProps) {
+export const Skeleton = React.memo(function Skeleton({ width = '100%', height = 20, borderRadius = 8, style = {} }: SkeletonProps) {
     return (
         <div
             className="skeleton"
@@ -20,10 +21,10 @@ export function Skeleton({ width = '100%', height = 20, borderRadius = 8, style 
             }}
         />
     );
-}
+});
 
 // 채팅 메시지 스켈레톤
-export function ChatMessageSkeleton({ isUser = false }: { isUser?: boolean }) {
+export const ChatMessageSkeleton = React.memo(function ChatMessageSkeleton({ isUser = false }: { isUser?: boolean }) {
     return (
         <div
             style={{
@@ -40,10 +41,10 @@ export function ChatMessageSkeleton({ isUser = false }: { isUser?: boolean }) {
             {isUser && <Skeleton width={28} height={28} borderRadius="50%" />}
         </div>
     );
-}
+});
 
 // 다이어리 목록 아이템 스켈레톤
-export function DiaryListItemSkeleton() {
+export const DiaryListItemSkeleton = React.memo(function DiaryListItemSkeleton() {
     return (
         <div
             style={{
@@ -60,10 +61,10 @@ export function DiaryListItemSkeleton() {
             <Skeleton width="80%" height={12} style={{ marginTop: 8 }} />
         </div>
     );
-}
+});
 
 // 여러 개의 채팅 메시지 스켈레톤
-export function ChatLoadingSkeleton() {
+export const ChatLoadingSkeleton = React.memo(function ChatLoadingSkeleton() {
     return (
         <div style={{ padding: 12 }}>
             <ChatMessageSkeleton isUser={false} />
@@ -72,17 +73,30 @@ export function ChatLoadingSkeleton() {
             <ChatMessageSkeleton isUser={true} />
         </div>
     );
-}
+});
 
 // 다이어리 목록 스켈레톤
-export function DiaryListSkeleton() {
+export const DiaryListSkeleton = React.memo(function DiaryListSkeleton({ count = 4 }: { count?: number }) {
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <DiaryListItemSkeleton />
-            <DiaryListItemSkeleton />
-            <DiaryListItemSkeleton />
-            <DiaryListItemSkeleton />
+            {Array.from({ length: count }).map((_, i) => (
+                <DiaryListItemSkeleton key={i} />
+            ))}
         </div>
     );
-}
+});
+
+// 감정 오브 스켈레톤
+export const EmotionOrbSkeleton = React.memo(function EmotionOrbSkeleton({ size = 200 }: { size?: number }) {
+    return (
+        <div style={{
+            width: size,
+            height: size,
+            borderRadius: '50%',
+            background: 'linear-gradient(135deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%)',
+            backgroundSize: '200% 200%',
+            animation: 'skeleton-pulse 1.5s ease-in-out infinite',
+        }} />
+    );
+});
 

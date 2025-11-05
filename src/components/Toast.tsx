@@ -1,5 +1,5 @@
 // Toast.tsx — 우아한 토스트 알림 컴포넌트 (alert/confirm 대체)
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 
 export type ToastType = 'success' | 'error' | 'warning' | 'info';
 
@@ -10,37 +10,39 @@ export interface ToastProps {
     onClose?: () => void;
 }
 
-export default function Toast({ message, type = 'info', duration = 3000, onClose }: ToastProps) {
+const Toast = React.memo(function Toast({ message, type = 'info', duration = 3000, onClose }: ToastProps) {
     const [visible, setVisible] = useState(false);
     const [exiting, setExiting] = useState(false);
 
-    useEffect(() => {
-        // 마운트 후 약간의 딜레이를 주고 등장 애니메이션
-        setTimeout(() => setVisible(true), 50);
-
-        // duration 후 자동으로 사라짐
-        const timer = setTimeout(() => {
-            handleClose();
-        }, duration);
-
-        return () => clearTimeout(timer);
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
-
-    const handleClose = () => {
+    const handleClose = useCallback(() => {
         setExiting(true);
         setTimeout(() => {
             setVisible(false);
             onClose?.();
         }, 300); // 애니메이션 시간과 일치
-    };
+    }, [onClose]);
 
-    const colors = {
+    useEffect(() => {
+        // 마운트 후 약간의 딜레이를 주고 등장 애니메이션
+        const showTimer = setTimeout(() => setVisible(true), 50);
+
+        // duration 후 자동으로 사라짐
+        const hideTimer = setTimeout(() => {
+            handleClose();
+        }, duration);
+
+        return () => {
+            clearTimeout(showTimer);
+            clearTimeout(hideTimer);
+        };
+    }, [duration, handleClose]);
+
+    const colors = useMemo(() => ({
         success: { bg: 'rgba(236, 253, 245, 0.95)', border: '#10b981', text: '#065f46', icon: '✓' },
         error: { bg: 'rgba(254, 242, 242, 0.95)', border: '#ef4444', text: '#991b1b', icon: '✕' },
         warning: { bg: 'rgba(255, 251, 235, 0.95)', border: '#f59e0b', text: '#92400e', icon: '⚠' },
         info: { bg: 'rgba(239, 246, 255, 0.95)', border: '#3b82f6', text: '#1e3a8a', icon: 'ℹ' },
-    };
+    }), []);
 
     const style = colors[type];
 
@@ -122,22 +124,22 @@ export default function Toast({ message, type = 'info', duration = 3000, onClose
             </button>
         </div>
     );
-}
+});
 
 // Toast Manager Hook
 export function useToast() {
     const [toasts, setToasts] = useState<Array<ToastProps & { id: string }>>([]);
 
-    const showToast = (props: ToastProps) => {
+    const showToast = useCallback((props: ToastProps) => {
         const id = Math.random().toString(36).substring(2, 9);
         setToasts((prev) => [...prev, { ...props, id }]);
-    };
+    }, []);
 
-    const removeToast = (id: string) => {
+    const removeToast = useCallback((id: string) => {
         setToasts((prev) => prev.filter((t) => t.id !== id));
-    };
+    }, []);
 
-    const ToastContainer = () => (
+    const ToastContainer = useCallback(() => (
         <>
             {toasts.map((toast, index) => (
                 <div key={toast.id} style={{ position: 'absolute', top: index * 80, width: '100%' }}>
@@ -153,8 +155,9 @@ export function useToast() {
                 </div>
             ))}
         </>
-    );
+    ), [toasts, removeToast]);
 
     return { showToast, ToastContainer };
 }
 
+export default Toast;

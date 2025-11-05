@@ -47,3 +47,41 @@ export interface DiarySessionDetailApiResponse {
   messages: DiaryMessageResponse[];
 }
 
+// Recharts 타입
+export interface ChartTooltipPayload {
+  name: string;
+  value: number;
+  color?: string;
+  payload?: Record<string, unknown>;
+}
+
+export interface ChartTooltipProps {
+  active?: boolean;
+  payload?: ChartTooltipPayload[];
+  label?: string;
+}
+
+export interface PieLabelProps {
+  name?: string;
+  percent?: number;
+  cx?: string | number;  // Recharts 타입 허용
+  cy?: string | number;  // Recharts 타입 허용
+  midAngle?: number;
+  innerRadius?: string | number;  // Recharts 타입 허용
+  outerRadius?: string | number;  // Recharts 타입 허용
+  value?: number;
+  index?: number;
+  [key: string]: unknown;  // Recharts의 추가 속성 허용
+}
+
+// Bar Chart Tooltip Formatter 타입
+export interface BarTooltipPayload {
+  emotion?: string;
+  percentage?: number;
+  [key: string]: unknown;
+}
+
+export interface BarTooltipFormatterProps {
+  payload?: BarTooltipPayload;
+  [key: string]: unknown;
+}

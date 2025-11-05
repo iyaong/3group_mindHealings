@@ -1,6 +1,7 @@
 // EmotionPrediction.tsx - 감정 예측 컴포넌트
 import { useEffect, useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+import type { BarTooltipPayload } from '../types/api';
 
 interface WeeklyPattern {
   day: number;
@@ -18,7 +19,7 @@ interface Prediction {
   activities: string[];
 }
 
-export default function EmotionPrediction() {
+const EmotionPrediction: React.FC = () => {
   const [prediction, setPrediction] = useState<Prediction | null>(null);
   const [weeklyPattern, setWeeklyPattern] = useState<WeeklyPattern[]>([]);
   const [loading, setLoading] = useState(true);
@@ -322,10 +323,10 @@ export default function EmotionPrediction() {
                   borderRadius: 8,
                   fontSize: 12
                 }}
-                formatter={(value: any, _name: any, props: any) => [
-                  `${value}% (${props.payload.emotion})`,
-                  '주요 감정'
-                ]}
+                formatter={(value: number, _name: string, props: { payload?: BarTooltipPayload }) => {
+                  const emotion = props.payload?.emotion || 'Unknown';
+                  return [`${value}% (${emotion})`, '주요 감정'];
+                }}
               />
               <Bar dataKey="percentage" radius={[8, 8, 0, 0]}>
                 {chartData.map((entry, index) => (
@@ -339,3 +340,5 @@ export default function EmotionPrediction() {
     </div>
   );
 }
+
+export default EmotionPrediction;

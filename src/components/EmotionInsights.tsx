@@ -40,9 +40,10 @@ export default function EmotionInsights({ days = 30 }: EmotionInsightsProps) {
 
       const data = await res.json();
       setInsights(data.insights);
-    } catch (e: any) {
-      console.error('인사이트 로드 오류:', e);
-      setError(e.message || '데이터를 불러오는데 실패했습니다.');
+    } catch (e) {
+      const error = e as Error;
+      console.error('인사이트 로드 오류:', error);
+      setError(error.message || '데이터를 불러오는데 실패했습니다.');
     } finally {
       setLoading(false);
     }

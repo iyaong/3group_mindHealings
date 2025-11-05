@@ -17,6 +17,7 @@ import {
 } from 'recharts';
 import { format, parseISO } from 'date-fns';
 import { ko } from 'date-fns/locale';
+import type { EnhancedMood, ChartTooltipProps, PieLabelProps } from '../types/api';
 
 interface EmotionHistoryData {
   date: string;
@@ -26,7 +27,7 @@ interface EmotionHistoryData {
     score: number;
     color: string;
   };
-  enhancedMood?: any;
+  enhancedMood?: EnhancedMood;
   type: 'ai' | 'online';
 }
 
@@ -78,9 +79,9 @@ export default function EmotionHistoryChart({ days = 7 }: EmotionHistoryChartPro
       setAiHistory(data.aiHistory || []);
       setOnlineHistory(data.onlineHistory || []);
       setStats(data.stats || null);
-    } catch (e: any) {
+    } catch (e) {
       console.error('감정 히스토리 로드 오류:', e);
-      setError(e.message || '데이터를 불러오는데 실패했습니다.');
+      setError(e instanceof Error ? e.message : '데이터를 불러오는데 실패했습니다.');
     } finally {
       setLoading(false);
     }
@@ -444,9 +445,9 @@ function StatCard({
 }
 
 // 커스텀 툴팁
-function CustomTooltip({ active, payload }: any) {
+function CustomTooltip({ active, payload }: ChartTooltipProps) {
   if (active && payload && payload.length) {
-    const data = payload[0].payload;
+    const data = payload[0].payload as Record<string, string | number>;
     return (
       <div style={{
         background: 'rgba(255, 255, 255, 0.95)',
@@ -456,15 +457,15 @@ function CustomTooltip({ active, payload }: any) {
         border: '1px solid #e5e7eb'
       }}>
         <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 4 }}>
-          {data.date}
+          {data.date as string}
         </div>
         <div style={{ 
           fontSize: 14, 
           fontWeight: 700, 
-          color: data.color,
+          color: data.color as string,
           marginBottom: 4
         }}>
-          {data.emotion}
+          {data.emotion as string}
         </div>
         <div style={{ fontSize: 13, color: '#111827' }}>
           강도: <strong>{data.intensity}%</strong>
@@ -479,7 +480,10 @@ function CustomTooltip({ active, payload }: any) {
 }
 
 // 파이 차트 라벨
-function renderPieLabel({ name, percentage }: any) {
+function renderPieLabel(props: PieLabelProps) {
+  const { name, percent } = props;
+  if (!name) return '';
+  const percentage = percent ? (percent * 100).toFixed(0) : '0';
   return `${name} ${percentage}%`;
 }
 

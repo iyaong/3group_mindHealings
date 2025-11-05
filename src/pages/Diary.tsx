@@ -1046,6 +1046,7 @@ export default function Diary() {
     };
 
     // ------------------------------------------------------- 이미지 팔레트 -------------------------------------------------------
+    /* 미사용 기능 - 나중에 필요시 활성화
     // imagePalette: 업로드한 이미지의 base64 데이터를 저장하는 배열
     const [imagePalette, setImagePalette] = useState<string[]>([]);
 
@@ -1082,6 +1083,7 @@ export default function Diary() {
         // 클릭 트리거 -> 파일 선택창 열기
         fileInput.click();
     };
+    */
 
     return (
         <>
@@ -1588,7 +1590,7 @@ export default function Diary() {
                                 <div style={{
                                     position: 'absolute',
                                     top: -25,
-                                    left: 30,
+                                    left: 200,
                                     zIndex: 20,
                                     pointerEvents: 'none',
                                     width: 200,
@@ -1627,13 +1629,16 @@ export default function Diary() {
                                 {/* 감정 진단 섹션 (중앙 상단, 가로 배치) */}
                                 <div style={{
                                     position: 'absolute',
-                                    top: 12,
-                                    left: '50%',
+                                    top: 30,
+                                    left: '68.8%',
                                     transform: 'translateX(-50%)',
                                     background: 'transparent',
                                     borderRadius: 16,
                                     padding: '14px 24px',
-                                    border: '2px solid #000',
+                                    border: '2px solid transparent',
+                                    backgroundImage: 'linear-gradient(white, white), linear-gradient(135deg, #667eea 0%, #764ba2 25%, #f093fb 50%, #4facfe 75%, #667eea 100%)',
+                                    backgroundOrigin: 'border-box',
+                                    backgroundClip: 'padding-box, border-box',
                                     minWidth: 500,
                                     maxWidth: '85%',
                                     zIndex: 15,
@@ -1664,8 +1669,8 @@ export default function Diary() {
                                                 {mood
                                                     ? '진단 완료'
                                                     : isAnalyzing
-                                                        ? '진단 중...'
-                                                        : `진단 전 (${messageCount}/${MIN_REQUIRED_MESSAGES})`
+                                                        ? '진단중...'
+                                                        : `진단전 (${messageCount}/${MIN_REQUIRED_MESSAGES})`
                                                 }
                                             </div>
                                             {mood && (
@@ -1772,26 +1777,6 @@ export default function Diary() {
 
                                 <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'center', gap: '1vw' }}>
 
-                                    {/* 이미지 팔레트 */}
-                                    <div className="image_palette">
-
-                                        {/* 이미지 추가 버튼 */}
-                                        <button onClick={eventAddImage}>+ 이미지</button>
-
-                                        {/* 이미지 리스트 */}
-                                        <div className="image_list">
-
-                                            {/* 최신 업로드 이미지가 위쪽에 오도록 reverse() 사용 */}
-                                            {[...imagePalette].reverse().map((imgSrc, index) => (
-                                                <div key={index} className="image_wrapper">
-                                                    <img src={imgSrc} alt={`Uploaded ${index}`} />
-                                                </div>
-                                            ))}
-
-                                        </div>
-
-                                    </div>
-
                                     {/* 채팅 영역 */}
                                     <div className="diary_chat_area">
 
@@ -1869,7 +1854,6 @@ export default function Diary() {
                                                 </div>
                                             )}
                                             <div ref={bottomRef} />
-
 
                                         </div>
 

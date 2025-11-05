@@ -85,7 +85,7 @@ interface InnerSilkRibbonProps {
   axis: [number, number, number];
 }
 
-const InnerSilkRibbon: React.FC<InnerSilkRibbonProps> = ({
+const InnerSilkRibbon: React.FC<InnerSilkRibbonProps> = React.memo(({
   phase,
   color1,
   color2,
@@ -100,7 +100,7 @@ const InnerSilkRibbon: React.FC<InnerSilkRibbonProps> = ({
     [phase, color1, color2]
   );
 
-  const rotationAxis = new THREE.Vector3(...axis).normalize();
+  const rotationAxis = useMemo(() => new THREE.Vector3(...axis).normalize(), [axis]);
 
   useFrame(({ clock }) => {
     const t = clock.getElapsedTime();
@@ -127,7 +127,7 @@ const InnerSilkRibbon: React.FC<InnerSilkRibbonProps> = ({
       />
     </mesh>
   );
-};
+});
 
 /* ───────────── Glass Orb (미사용) ───────────── */
 /*
@@ -243,7 +243,7 @@ interface StarburstLightProps {
   emotionColor: string;
 }
 
-const StarburstLight: React.FC<StarburstLightProps> = ({ emotionColor }) => {
+const StarburstLight: React.FC<StarburstLightProps> = React.memo(({ emotionColor }) => {
   const coreRef = useRef<THREE.Mesh>(null);
 
   useFrame(({ clock }) => {
@@ -267,7 +267,7 @@ const StarburstLight: React.FC<StarburstLightProps> = ({ emotionColor }) => {
       </mesh>
     </group>
   );
-};
+});
 
 /* ───────────── Scene ───────────── */
 interface SiriOrbProps {
@@ -280,7 +280,7 @@ interface SiriOrbProps {
   messageCount?: number;  // 메시지 개수 (진단중 텍스트 표시 여부)
 }
 
-export default function SiriOrb({ 
+export default React.memo(function SiriOrb({ 
   color = '#9d00ff', 
   intensity = 1,
   size = 400,
@@ -290,35 +290,45 @@ export default function SiriOrb({
   messageCount = 0
 }: SiriOrbProps) {
   // 색상을 HSL로 변환하여 보색과 유사색 생성
-  const baseColor = new THREE.Color(color);
-  const hsl = { h: 0, s: 0, l: 0 };
-  baseColor.getHSL(hsl);
-  
-  // 채도를 높이고 밝기를 낮춰서 색상이 더 선명하게 보이도록 조정
-  const enhancedSaturation = Math.min(hsl.s * 1.4, 1.0); // 채도 40% 증가
-  const reducedLightness = Math.max(hsl.l * 0.45, 0.25); // 밝기 55% 감소 (최소 0.25)
-  
-  // 8가지 색상 변형 생성 (더 진하고 선명하게)
-  const colors = [
-    new THREE.Color().setHSL(hsl.h, enhancedSaturation * 0.9, reducedLightness * 0.85).getStyle(),  // 어둡게
-    new THREE.Color().setHSL((hsl.h + 0.08) % 1, enhancedSaturation * 0.95, reducedLightness * 0.9).getStyle(),  // 약간 다른 색조
-    new THREE.Color().setHSL((hsl.h + 0.12) % 1, enhancedSaturation, reducedLightness).getStyle(),  // 기본
-    new THREE.Color().setHSL((hsl.h - 0.08 + 1) % 1, enhancedSaturation * 0.85, reducedLightness * 0.95).getStyle(),  // 반대 방향
-    new THREE.Color().setHSL(hsl.h, enhancedSaturation * 1.05, reducedLightness * 1.05).getStyle(),  // 채도 높게
-    new THREE.Color().setHSL((hsl.h + 0.15) % 1, enhancedSaturation * 0.95, reducedLightness * 0.92).getStyle(),  // 보색 방향
-    new THREE.Color().setHSL((hsl.h - 0.12 + 1) % 1, enhancedSaturation * 0.88, reducedLightness * 0.88).getStyle(),  // 어두운 변형
-    new THREE.Color().setHSL((hsl.h + 0.05) % 1, enhancedSaturation, reducedLightness * 0.93).getStyle(),  // 미세 조정
-  ];
+  const colors = useMemo(() => {
+    const baseColor = new THREE.Color(color);
+    const hsl = { h: 0, s: 0, l: 0 };
+    baseColor.getHSL(hsl);
+    
+    // 채도를 높이고 밝기를 낮춰서 색상이 더 선명하게 보이도록 조정
+    const enhancedSaturation = Math.min(hsl.s * 1.4, 1.0); // 채도 40% 증가
+    const reducedLightness = Math.max(hsl.l * 0.45, 0.25); // 밝기 55% 감소 (최소 0.25)
+    
+    // 8가지 색상 변형 생성 (더 진하고 선명하게)
+    return [
+      new THREE.Color().setHSL(hsl.h, enhancedSaturation * 0.9, reducedLightness * 0.85).getStyle(),
+      new THREE.Color().setHSL((hsl.h + 0.08) % 1, enhancedSaturation * 0.95, reducedLightness * 0.9).getStyle(),
+      new THREE.Color().setHSL((hsl.h + 0.12) % 1, enhancedSaturation, reducedLightness).getStyle(),
+      new THREE.Color().setHSL((hsl.h - 0.08 + 1) % 1, enhancedSaturation * 0.85, reducedLightness * 0.95).getStyle(),
+      new THREE.Color().setHSL(hsl.h, enhancedSaturation * 1.05, reducedLightness * 1.05).getStyle(),
+      new THREE.Color().setHSL((hsl.h + 0.15) % 1, enhancedSaturation * 0.95, reducedLightness * 0.92).getStyle(),
+      new THREE.Color().setHSL((hsl.h - 0.12 + 1) % 1, enhancedSaturation * 0.88, reducedLightness * 0.88).getStyle(),
+      new THREE.Color().setHSL((hsl.h + 0.05) % 1, enhancedSaturation, reducedLightness * 0.93).getStyle(),
+    ];
+  }, [color]);
 
   // 보색 계산 (180도 반대) - 마찬가지로 선명하게
-  const complementaryHue = (hsl.h + 0.5) % 1;
-  const complementaryColors = colors.map((_, i) => 
-    new THREE.Color().setHSL(
-      (complementaryHue + (i * 0.05)) % 1, 
-      enhancedSaturation * 0.9, 
-      reducedLightness * 0.9
-    ).getStyle()
-  );
+  const complementaryColors = useMemo(() => {
+    const baseColor = new THREE.Color(color);
+    const hsl = { h: 0, s: 0, l: 0 };
+    baseColor.getHSL(hsl);
+    const enhancedSaturation = Math.min(hsl.s * 1.4, 1.0);
+    const reducedLightness = Math.max(hsl.l * 0.45, 0.25);
+    const complementaryHue = (hsl.h + 0.5) % 1;
+    
+    return colors.map((_, i) => 
+      new THREE.Color().setHSL(
+        (complementaryHue + (i * 0.05)) % 1, 
+        enhancedSaturation * 0.9, 
+        reducedLightness * 0.9
+      ).getStyle()
+    );
+  }, [color, colors]);
 
   return (
     <div
@@ -410,4 +420,4 @@ export default function SiriOrb({
       )}
     </div>
   );
-}
+});

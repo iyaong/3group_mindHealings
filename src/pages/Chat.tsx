@@ -10,7 +10,9 @@ import "./Chat.css";
 type AiMsg = { role: 'user' | 'assistant'; content: string };
 
 // Chat 컴포넌트 (기본 내보내기)
-export default function Chat() {
+import type { EnhancedMood, EmotionDetail } from '../types/api';
+
+const Chat: React.FC = () => {
     const navigate = useNavigate(); // 로그인 안 된 사용자를 리다이렉트하기 위해 사용
     const location = useLocation(); // Home에서 전달된 state를 받기 위해 사용
     const { user, loading } = useAuth(); // 로그인 상태 확인
@@ -26,7 +28,7 @@ export default function Chat() {
     // 감정 진단 관련 상태
     const [messageCount, setMessageCount] = useState<number>(0); // 사용자 메시지 개수
     const [mood, setMood] = useState<{ emotion: string; score: number; color: string } | null>(null);
-    const [enhancedMood, setEnhancedMood] = useState<any>(null); // 복합 감정 분석 결과
+    const [enhancedMood, setEnhancedMood] = useState<EnhancedMood | null>(null); // 복합 감정 분석 결과
     const [isAnalyzing, setIsAnalyzing] = useState(false); // 감정 분석 중
     const [savingToDiary, setSavingToDiary] = useState(false); // 다이어리 저장 중
     const [emotionColor, setEmotionColor] = useState<string | null>(null); // 감정 색상
@@ -338,7 +340,7 @@ export default function Chat() {
                     
                     // 부 감정이 있으면 표시
                     if (secondary && secondary.length > 0) {
-                        const secondaryNames = secondary.map((s: any) => s.emotion).join(', ');
+                        const secondaryNames = secondary.map((s: EmotionDetail) => s.emotion).join(', ');
                         toastMessage += `\n+ ${secondaryNames}`;
                     }
                     
@@ -689,7 +691,7 @@ export default function Chat() {
                                             flexWrap: 'wrap'
                                         }}>
                                             <span style={{ color: '#6b7280' }}>함께 느껴지는 감정:</span>
-                                            {enhancedMood.secondary.map((s: any, idx: number) => (
+                                            {enhancedMood.secondary.map((s: EmotionDetail, idx: number) => (
                                                 <span 
                                                     key={idx}
                                                     style={{
@@ -891,3 +893,5 @@ export default function Chat() {
         </>
     );
 }
+
+export default Chat;
