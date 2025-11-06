@@ -1606,10 +1606,11 @@ async function detectEmotionFromText(text: string): Promise<{ emotion: string; s
   const prompt = `다음 한국어 텍스트에서 사용자의 전반적인 감정 상태를 분석하세요.
 여러 메시지가 포함되어 있다면, 가장 최근 메시지에 더 높은 가중치를 두되 전체적인 맥락도 고려하세요.
 
-감정 목록: ${emotionList}
+**중요: 반드시 아래 감정 목록에서만 선택하세요:**
+${emotionList}
 
-출력 형식: {"emotion":"<감정 키 중 하나>","score":0..100}
-- emotion: 위 목록에서 정확히 하나를 선택
+출력 형식 (JSON만): {"emotion":"<감정 키 중 하나>","score":0..100}
+- emotion: 위 목록에 있는 정확한 한글 감정만 사용 (영어 절대 금지)
 - score: 해당 감정의 확신도 (0~100, 높을수록 확실함)
 
 텍스트: ${text}`;
@@ -1622,10 +1623,12 @@ async function detectEmotionFromText(text: string): Promise<{ emotion: string; s
           role: 'system', 
           content: `You are an expert emotion analyzer that returns JSON only.
 규칙:
-1. 반드시 제공된 감정 목록 중 하나를 정확히 사용
-2. 최근 메시지일수록 중요하게 고려
-3. 일관성 있는 분석 (같은 텍스트는 항상 같은 결과)
-4. score는 감정의 명확성과 강도를 반영 (애매하면 낮게, 명확하면 높게)`
+1. 반드시 제공된 한글 감정 목록 중 하나를 정확히 사용 (영어 감정 절대 금지)
+2. emotion 필드는 오직 한글 감정 키만 사용 (예: "기쁨", "슬픔", "화" 등)
+3. 최근 메시지일수록 중요하게 고려
+4. 일관성 있는 분석 (같은 텍스트는 항상 같은 결과)
+5. score는 감정의 명확성과 강도를 반영 (애매하면 낮게, 명확하면 높게)
+6. 감정 목록에 없는 감정은 절대 사용하지 말 것`
         },
         { role: 'user', content: prompt },
       ],
@@ -1635,10 +1638,19 @@ async function detectEmotionFromText(text: string): Promise<{ emotion: string; s
     console.log('🤖 OpenAI 응답:', raw);
     let parsed: any = {};
     try { parsed = JSON.parse(raw); } catch { parsed = {}; }
-    const emotion = String(parsed.emotion || defaultEmotion).trim();
+    
+    // emotion 값 검증: emotion_colors.json에 있는 키만 허용
+    let emotion = String(parsed.emotion || '').trim();
+    
+    // emotion_colors.json에 정의되지 않은 감정이면 기본값 사용
+    if (!EMOTION_COLORS[emotion]) {
+      console.warn(`⚠️ 정의되지 않은 감정 "${emotion}" 감지됨. 기본값으로 대체합니다.`);
+      emotion = defaultEmotion;
+    }
+    
     const score = Math.max(0, Math.min(100, Number(parsed.score) || 0));
-    // emotion_colors.json에 정의된 키만 사용
     const color = EMOTION_COLORS[emotion] || EMOTION_COLORS[defaultEmotion] || '#A8E6CF';
+    
     console.log('✅ 최종 감정 분석:', { emotion, score, color });
     return { emotion, score, color };
   } catch (e) {
@@ -1671,7 +1683,8 @@ async function detectEnhancedEmotion(text: string, previousMoods?: any[]): Promi
   const openai = new OpenAI({ apiKey: OPENAI_API_KEY });
   const prompt = `다음 한국어 텍스트에서 사용자의 감정을 **복합적으로** 분석하세요.
 
-감정 목록: ${emotionList}
+**중요: 반드시 아래 한글 감정 목록에서만 선택하세요:**
+${emotionList}
 
 출력 형식 (반드시 JSON):
 {
@@ -1684,10 +1697,11 @@ async function detectEnhancedEmotion(text: string, previousMoods?: any[]): Promi
 }
 
 규칙:
-1. primary: 가장 강한 감정 1개
-2. secondary: 함께 느껴지는 감정 최대 2개 (없으면 빈 배열)
+1. primary: 가장 강한 감정 1개 (위 목록의 한글 감정만)
+2. secondary: 함께 느껴지는 감정 최대 2개 (없으면 빈 배열, 위 목록의 한글 감정만)
 3. intensity: 감정의 강도 (0=매우 약함, 100=매우 강함)
 4. triggerWords: 감정을 유발한 핵심 단어/구절 (최대 5개)
+5. 영어 감정 절대 금지, 오직 위 목록의 한글 감정만 사용
 
 텍스트: ${text}`;
 
@@ -1698,7 +1712,8 @@ async function detectEnhancedEmotion(text: string, previousMoods?: any[]): Promi
         { 
           role: 'system', 
           content: `You are an advanced emotion analyzer that detects multiple emotions simultaneously.
-Return only valid JSON with no additional text.`
+Return only valid JSON with no additional text.
+IMPORTANT: Use only Korean emotion labels from the provided list. Never use English emotions.`
         },
         { role: 'user', content: prompt },
       ],
@@ -1711,8 +1726,13 @@ Return only valid JSON with no additional text.`
     let parsed: any = {};
     try { parsed = JSON.parse(raw); } catch { parsed = {}; }
     
-    // Primary 감정 처리
-    const primaryEmotion = parsed.primary?.emotion || defaultEmotion;
+    // Primary 감정 처리 및 검증
+    let primaryEmotion = String(parsed.primary?.emotion || '').trim();
+    if (!EMOTION_COLORS[primaryEmotion]) {
+      console.warn(`⚠️ 복합 분석: 정의되지 않은 주 감정 "${primaryEmotion}" 감지됨. 기본값으로 대체합니다.`);
+      primaryEmotion = defaultEmotion;
+    }
+    
     const primaryScore = Math.max(0, Math.min(100, Number(parsed.primary?.score) || 50));
     const primaryIntensity = Math.max(0, Math.min(100, Number(parsed.primary?.intensity) || 50));
     const primaryColor = EMOTION_COLORS[primaryEmotion] || EMOTION_COLORS[defaultEmotion] || '#A8E6CF';
@@ -1724,15 +1744,24 @@ Return only valid JSON with no additional text.`
       intensity: primaryIntensity
     };
     
-    // Secondary 감정들 처리
+    // Secondary 감정들 처리 및 검증
     const secondary: EmotionDetail[] = (parsed.secondary || [])
       .slice(0, 2) // 최대 2개
-      .map((s: any) => ({
-        emotion: s.emotion || defaultEmotion,
-        score: Math.max(0, Math.min(100, Number(s.score) || 30)),
-        color: EMOTION_COLORS[s.emotion] || EMOTION_COLORS[defaultEmotion] || '#A8E6CF',
-        intensity: Math.max(0, Math.min(100, Number(s.intensity) || 30))
-      }));
+      .map((s: any) => {
+        let secEmotion = String(s.emotion || '').trim();
+        // emotion_colors.json에 없는 감정은 제외
+        if (!EMOTION_COLORS[secEmotion]) {
+          console.warn(`⚠️ 복합 분석: 정의되지 않은 부 감정 "${secEmotion}" 제외됨.`);
+          return null;
+        }
+        return {
+          emotion: secEmotion,
+          score: Math.max(0, Math.min(100, Number(s.score) || 30)),
+          color: EMOTION_COLORS[secEmotion] || '#A8E6CF',
+          intensity: Math.max(0, Math.min(100, Number(s.intensity) || 30))
+        };
+      })
+      .filter((s): s is EmotionDetail => s !== null); // null 제거
     
     // 트리거 단어 추출
     const triggerWords: string[] = (parsed.triggerWords || [])
@@ -2358,6 +2387,61 @@ ${emotionSummary}
   } catch (e) {
     console.error('감정 칭호 생성 오류:', e);
     res.status(500).json({ message: '감정 칭호 생성 오류' });
+  }
+});
+
+// GET /api/admin/check-emotions - 데이터베이스의 감정 데이터 체크 (관리자용)
+app.get('/api/admin/check-emotions', authMiddleware, async (req: any, res) => {
+  try {
+    const client = await getClient();
+    const db = client.db(DB_NAME);
+    const sessions = db.collection('diary_sessions');
+    
+    // 모든 세션의 감정 데이터 조회
+    const allSessions = await sessions.find({
+      'mood.emotion': { $exists: true }
+    }).toArray();
+    
+    // 감정 통계
+    const emotionCount: Record<string, number> = {};
+    const uniqueEmotions = new Set<string>();
+    
+    allSessions.forEach((session: any) => {
+      const emotion = session.mood?.emotion;
+      if (emotion) {
+        uniqueEmotions.add(emotion);
+        emotionCount[emotion] = (emotionCount[emotion] || 0) + 1;
+      }
+    });
+    
+    // 한글/영어 분류
+    const koreanEmotions: string[] = [];
+    const englishEmotions: string[] = [];
+    
+    Array.from(uniqueEmotions).sort().forEach(emotion => {
+      const isKorean = /[가-힣]/.test(emotion);
+      if (isKorean) {
+        koreanEmotions.push(emotion);
+      } else {
+        englishEmotions.push(emotion);
+      }
+    });
+    
+    res.json({
+      ok: true,
+      total: allSessions.length,
+      uniqueCount: uniqueEmotions.size,
+      koreanEmotions: koreanEmotions.map(e => ({ emotion: e, count: emotionCount[e] })),
+      englishEmotions: englishEmotions.map(e => ({ emotion: e, count: emotionCount[e] })),
+      allEmotions: Array.from(uniqueEmotions).sort().map(e => ({ 
+        emotion: e, 
+        count: emotionCount[e],
+        isKorean: /[가-힣]/.test(e)
+      }))
+    });
+  } catch (e) {
+    console.error('감정 체크 오류:', e);
+    res.status(500).json({ message: '감정 체크 오류' });
   }
 });
 
@@ -3368,12 +3452,74 @@ server.on("connection", (client) => {
 // ------------------------- # connection -끝- -------------------------
 // ----------------------- # 실시간 1대1 매칭 -끝- -----------------------
 
+// 감정 데이터 체크 함수 (서버 시작 시 자동 실행)
+async function checkEmotionsOnStartup() {
+  try {
+    const client = await getClient();
+    const db = client.db(DB_NAME);
+    const sessions = db.collection('diary_sessions');
+    
+    // 모든 세션의 감정 데이터 조회
+    const allSessions = await sessions.find({
+      'mood.emotion': { $exists: true }
+    }).toArray();
+    
+    if (allSessions.length === 0) {
+      console.log('📊 감정 데이터 체크: 데이터 없음');
+      return;
+    }
+    
+    // 감정 통계
+    const emotionCount: Record<string, number> = {};
+    const uniqueEmotions = new Set<string>();
+    
+    allSessions.forEach((session: any) => {
+      const emotion = session.mood?.emotion;
+      if (emotion) {
+        uniqueEmotions.add(emotion);
+        emotionCount[emotion] = (emotionCount[emotion] || 0) + 1;
+      }
+    });
+    
+    // 한글/영어 분류
+    const englishEmotions: Array<{ emotion: string; count: number }> = [];
+    
+    Array.from(uniqueEmotions).sort().forEach(emotion => {
+      const isKorean = /[가-힣]/.test(emotion);
+      if (!isKorean) {
+        englishEmotions.push({ emotion, count: emotionCount[emotion] });
+      }
+    });
+    
+    console.log('\n📊 ==================== 감정 데이터 체크 ====================');
+    console.log(`총 세션 수: ${allSessions.length}`);
+    console.log(`고유 감정 수: ${uniqueEmotions.size}`);
+    
+    if (englishEmotions.length > 0) {
+      console.log('\n⚠️  영어 감정 발견:');
+      englishEmotions.forEach(({ emotion, count }) => {
+        console.log(`  - ${emotion}: ${count}개`);
+      });
+      console.log('\n💡 영어 감정을 한글로 수정해야 합니다!');
+    } else {
+      console.log('✅ 모든 감정이 한글로 저장되어 있습니다.');
+    }
+    console.log('========================================================\n');
+  } catch (e) {
+    console.error('감정 체크 오류:', e);
+  }
+}
+
 // Start only after confirming DB readiness
 (async () => {
   try {
     const client = await getClient();
     await client.db('admin').command({ ping: 1 });
     await ensureIndexes();
+    
+    // 감정 데이터 체크 실행
+    await checkEmotionsOnStartup();
+    
     httpServer.listen(PORT, () => {
       console.log(`API server listening on http://localhost:${PORT} (db: ${DB_NAME})`);
     });

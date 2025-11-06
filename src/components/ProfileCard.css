@@ -224,7 +224,7 @@
   padding: 12px 20px;
   
   /* 글래스모피즘 효과 */
-  background: rgba(104, 104, 104, 0.2);
+  background: rgba(104, 104, 104, 0.247);
   backdrop-filter: blur(15px);
   -webkit-backdrop-filter: blur(15px);
   
@@ -241,8 +241,8 @@
   /* 텍스트 */
   color: #ffffff;
   text-shadow: 
-    0 2px 8px rgba(0, 0, 0, 0.4),
-    0 0 20px rgba(255, 255, 255, 0.2);
+    0 2px 8px rgba(0, 0, 0, 0.555),
+    0 0 20px rgba(127, 127, 127, 0.2);
   -webkit-font-smoothing: antialiased;
   
   overflow: hidden;
@@ -274,6 +274,9 @@
   text-align: left;
   /* 강화된 텍스트 그림자 */
   
+  text-shadow: 
+    0 2px 5px rgba(0, 0, 0, 0.555),
+    0 0 10px rgba(127, 127, 127, 0.2);
   color: #ffffff;
   -webkit-font-smoothing: antialiased;
   overflow: hidden;
