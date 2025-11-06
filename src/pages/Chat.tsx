@@ -40,12 +40,19 @@ const Chat: React.FC = () => {
     const prevBodyBgRef = useRef<string | null>(null);
     const prevNavBgRef = useRef<string | null>(null);
     const navChangedRef = useRef(false);
+    const initialMessageProcessedRef = useRef(false); // initialMessage 처리 여부 추적
+    const msgsRef = useRef<AiMsg[]>(msgs); // msgs의 최신 상태를 추적하는 ref
+
+    // msgs가 변경될 때마다 ref 업데이트
+    useEffect(() => {
+        msgsRef.current = msgs;
+    }, [msgs]);
 
     // 채팅 기록 불러오기 (컴포넌트 처음 렌더링 시 1회 실행)
     useEffect(() => {
         (async () => {
             try {
-                // Home에서 새 대화로 넘어온 경우 (initialMessage가 있으면) 이전 기록 불러오지 않음
+                // Home에서 새 대화로 넘어온 경우만 이전 기록 불러오지 않음
                 const state = location.state as { initialMessage?: string; isNewChat?: boolean } | null;
                 const isNewChat = state?.isNewChat || !!state?.initialMessage;
                 
@@ -54,25 +61,133 @@ const Chat: React.FC = () => {
                     return;
                 }
                 
-                // 서버에서 이전 대화 기록 요청
+                // ⚠️ 여기가 핵심: state가 없으면 (직접 접속, 새로고침 등) 이전 기록 불러오지 않음
+                // 항상 새 대화로 시작
+                return;
+                
+                // 아래 코드는 실행되지 않음 (주석 처리된 것과 같음)
+                // eslint-disable-next-line no-unreachable
                 const res = await fetch('/api/ai/history', { credentials: 'include' });
-                if (!res.ok) return; // 실패 시 무시
+                if (!res.ok) return;
                 const data = await res.json();
 
-                // 서버에서 받은 데이터가 배열이면 기존 인사 메시지 밑에 병합
                 if (Array.isArray(data?.items) && data.items.length > 0) {
                     const history: AiMsg[] = data.items.map((x: unknown) => {
                         const item = x as { role?: string; content?: string };
                         return { role: (item.role === 'user' ? 'user' : 'assistant'), content: removeJsonFromContent(String(item.content || '')) };
                     });
-                    // 첫 메시지(인사)는 유지하고, 그 아래에 대화 기록 추가
                     setMsgs((prev) => [prev[0], ...history]);
                 }
             } catch {
-                // 실패 시 조용히 무시 (에러 메시지 노출 안 함)
+                // 실패 시 조용히 무시
             }
         })();
     }, []); // 마운트 시 한 번만 실행
+
+    // Home에서 전달된 initialMessage 자동 전송 처리
+    useEffect(() => {
+        const state = location.state as { initialMessage?: string; isNewChat?: boolean } | null;
+        
+        // 이미 처리했거나 initialMessage가 없거나 전송 중이면 무시
+        if (!state?.initialMessage || initialMessageProcessedRef.current || sending) {
+            return;
+        }
+        
+        const initialMsg = state.initialMessage;
+        
+        // 처리 완료 플래그 설정 (중복 실행 방지)
+        initialMessageProcessedRef.current = true;
+        
+        // state 즉시 초기화 (뒤로가기 시 중복 실행 방지)
+        window.history.replaceState({}, document.title);
+        
+        // 입력창에 메시지 설정
+        setInput(initialMsg);
+        
+        // 약간의 딜레이 후 자동 전송
+        setTimeout(async () => {
+            const prompt = initialMsg.trim();
+            if (!prompt) return;
+            
+            setSending(true);
+            setTyping(true);
+            
+            // 사용자 메시지 생성
+            const userMessage = { role: 'user' as const, content: prompt };
+            
+            // 1. UI에 사용자 메시지 추가
+            setMsgs(prev => [...prev, userMessage]);
+            setInput("");
+            setMessageCount(prev => prev + 1);
+            
+            // 2. 로딩 메시지 추가
+            setMsgs(prev => [...prev, { role: 'assistant', content: '…' }]);
+            
+            // 3. 상태 업데이트를 기다림
+            await new Promise(resolve => setTimeout(resolve, 50));
+            
+            // 4. ref에서 최신 상태 읽기 (로딩 메시지 제외)
+            const messagesToSend = msgsRef.current.slice(0, -1);
+            
+            try {
+                console.log('Sending to API:', messagesToSend); // 디버깅용
+                console.log('Messages count:', messagesToSend.length); // 개수 확인
+                
+                if (!messagesToSend || messagesToSend.length === 0) {
+                    console.error('messagesToSend is empty!');
+                    setMsgs((prev) => [
+                        ...prev.slice(0, -1),
+                        { role: 'assistant', content: '⚠️ 메시지 전송 오류가 발생했습니다.' }
+                    ]);
+                    setSending(false);
+                    setTyping(false);
+                    return;
+                }
+                
+                const res = await fetch('/api/ai/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ messages: messagesToSend }),
+                });
+                
+                if (!res.ok) {
+                    const errorText = await res.text();
+                    console.error('API Error:', res.status, errorText);
+                    setMsgs((prev) => [
+                        ...prev.slice(0, -1),
+                        { role: 'assistant', content: '⚠️ 서버 응답 오류가 발생했습니다. 다시 시도해 주세요.' }
+                    ]);
+                    setSending(false);
+                    setTyping(false);
+                    return;
+                }
+                
+                const data = await res.json();
+                console.log('API Response:', data); // 서버 응답 확인
+                console.log('Content field:', data.content); // content 필드 확인
+                console.log('Reply field:', data.reply); // reply 필드 확인
+                
+                // 서버는 'content' 필드로 응답하지만, 이전 코드는 'reply'를 기대함
+                const aiReply = data.content || data.reply || '답변을 생성할 수 없습니다.';
+                
+                // 5. 로딩 메시지를 AI 응답으로 교체
+                setMsgs((prev) => [
+                    ...prev.slice(0, -1),
+                    { role: 'assistant', content: aiReply }
+                ]);
+            } catch (error) {
+                console.error('Chat API error:', error);
+                setMsgs((prev) => [
+                    ...prev.slice(0, -1),
+                    { role: 'assistant', content: '⚠️ 네트워크 오류가 발생했습니다.' }
+                ]);
+            } finally {
+                setSending(false);
+                setTyping(false);
+            }
+        }, 100);
+    }, [location]); // location만 의존성으로 유지
 
     // 문자열에서 { ... } 형태의 JSON 제거
     const removeJsonFromContent = (content: string) => {
