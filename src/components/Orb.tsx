@@ -127,7 +127,7 @@ const InnerSilkRibbon: React.FC<InnerSilkRibbonProps> = ({
     const t = clock.getElapsedTime();
     if (mat.current) mat.current.uniforms.uTime.value = t;
     if (mesh.current) {
-      const rotSpeed = speed * 0.0025;  // 회전 속도 67% 증가
+      const rotSpeed = speed * 0.0030;  // 회전 속도 67% 증가
       mesh.current.rotateOnAxis(rotationAxis, rotSpeed);
       mesh.current.rotation.x += Math.sin(t * 0.5 + phase) * 0.002;
       mesh.current.rotation.y += Math.cos(t * 0.6 + phase * 0.5) * 0.002;
@@ -152,74 +152,25 @@ const InnerSilkRibbon: React.FC<InnerSilkRibbonProps> = ({
 /* ───────────── Glass Orb ───────────── */
 const GlassOrb: React.FC = () => (
   <mesh scale={0.56} renderOrder={3}>
-    <sphereGeometry args={[1, 256, 256]} />
+    <sphereGeometry args={[1, 290, 290]} />
     <meshPhysicalMaterial
-      transmission={0.8}
+      transmission={0.5}
       thickness={0.08}
-      roughness={0.05}
-      clearcoat={1}
+      roughness={0.02}
+      clearcoat={0.5}
       clearcoatRoughness={0.1}
-      reflectivity={1.0}
-      ior={1.3}
-      color="#f8f8ff"
-      attenuationColor="#d8e8ff"
-      attenuationDistance={2.0}
+      reflectivity={0.5}
+      ior={1.0}
+      color="#44444441"
+      attenuationColor="#3535357b"
+      attenuationDistance={1.0}
       transparent
-      opacity={0.1}
+      opacity={0.005}
       side={THREE.FrontSide}
       depthWrite={false}
     />
   </mesh>
 );
-
-/* ───────────── Center Glow ───────────── */
-const CenterGlow: React.FC = () => {
-  const mesh = useRef<THREE.Mesh>(null);
-  
-  // 🌈 선명한 색상 팔레트
-  const colors = useMemo(() => [
-    new THREE.Color("#ffeb3b"), // 밝은 노란색
-    new THREE.Color("#ff4db8"), // 핫핑크
-    new THREE.Color("#4cff88"), // 밝은 민트그린
-    new THREE.Color("#4d9eff"), // 밝은 블루
-    new THREE.Color("#00ffff"), // 시안
-    new THREE.Color("#b47dff"), // 밝은 보라
-  ], []);
-
-  useFrame(({ clock }) => {
-    const t = clock.getElapsedTime();
-    if (mesh.current && mesh.current.material instanceof THREE.MeshStandardMaterial) {
-      // 로딩 중 강한 펄스 (더 밝게)
-      mesh.current.material.emissiveIntensity = 25 + Math.sin(t * 4.5) * 15.0;
-      mesh.current.scale.setScalar(1 + Math.sin(t * 2.5) * 0.06);
-      mesh.current.rotation.y += 0.008;
-      mesh.current.rotation.x += 0.004;
-      
-      // 🎨 다이나믹 색상 순환
-      const colorCycle = (t * 0.4) % colors.length;
-      const idx1 = Math.floor(colorCycle);
-      const idx2 = (idx1 + 1) % colors.length;
-      const mixFactor = colorCycle - idx1;
-      
-      const currentColor = colors[idx1].clone().lerp(colors[idx2], mixFactor);
-      mesh.current.material.emissive.copy(currentColor);
-      mesh.current.material.color.copy(currentColor).multiplyScalar(1.2);
-    }
-  });
-
-  return (
-    <mesh ref={mesh}>
-      <sphereGeometry args={[0.25, 64, 64]} />
-      <meshStandardMaterial
-        emissive="#f0d8ff"
-        color="#fff5ff"
-        emissiveIntensity={18.0}
-        transparent
-        opacity={1.0}
-      />
-    </mesh>
-  );
-};
 
 /* ───────────── Scene ───────────── */
 export default function SiriOrb() {
@@ -228,17 +179,19 @@ export default function SiriOrb() {
       className="stage"
       style={{
         width: "100%",
-        height: "100vh",
-        background: "#000000",
+        height: "100%",
+        background: "transparent",
         overflow: "hidden",
       }}
     >
-      <Canvas camera={{ position: [0, 0, 2.5], fov: 50 }}>
+      <Canvas 
+        camera={{ position: [0, 0, 3.5], fov: 21 }}
+        gl={{ alpha: true, antialias: true }}
+        style={{ background: 'transparent' }}
+      >
         <ambientLight intensity={0.35} />
-        <directionalLight position={[5, 5, 5]} intensity={1.1} color="#ffffff" />
+        <directionalLight position={[5, 5, 5]} intensity={0.7} color="#ffffff" />
         <pointLight position={[0, 0, 0]} intensity={3.0} color="#ffffff" distance={4} />
-
-        <CenterGlow />
 
         {/* 🎨 선명한 색상 리본 조합 */}
         <InnerSilkRibbon
@@ -278,10 +231,10 @@ export default function SiriOrb() {
 
         <EffectComposer>
           <Bloom
-            intensity={1.0}
+            intensity={0}
             luminanceThreshold={0.3}
             luminanceSmoothing={0.8}
-            radius={0.5}
+            radius={0.2}
           />
         </EffectComposer>
       </Canvas>

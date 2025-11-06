@@ -6,6 +6,7 @@ import { useNavigate } from "react-router-dom";
 import { io, Socket } from "socket.io-client";
 import { useAuth } from '../hooks/useAuth';
 import { useToast } from '../components/Toast';
+import Orb from '../components/Orb';
 import './Online.css';
 
 export default function Online() {
@@ -436,10 +437,11 @@ export default function Online() {
 
       {/* <2> 챗온 매칭 중 페이지 -시작- */}
       {displayMatching && (
-        <div style={{ width: '100%', minHeight: 'calc(100vh - 56px)', display: 'grid', placeItems: 'center', background: 'linear-gradient(135deg, #f0f9ff 0%, #e0e7ff 100%)' }}>
+        <div style={{ width: '100%', minHeight: 'calc(100vh - 56px)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(135deg, #f0f9ff 0%, #e0e7ff 100%)' }}>
           <div style={{ textAlign: 'center', width: 'min(500px, 90%)' }}>
-            <div style={{ fontSize: 64, marginBottom: 20, animation: 'pulse 2s ease-in-out infinite' }}>
-              🔍
+            {/* Orb 애니메이션 */}
+            <div style={{ width: 300, height: 300, margin: '0 auto 20px' }}>
+              <Orb />
             </div>
             <h2 style={{ fontSize: 24, fontWeight: 700, marginBottom: 12, color: '#374151' }}>
               {matchingMessage}
