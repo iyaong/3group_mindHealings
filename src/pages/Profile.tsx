@@ -22,7 +22,7 @@ const Profile: React.FC = () => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [changingPassword, setChangingPassword] = useState(false);
 
-  // 프로필 로드 (bio 및 감정 TOP3 포함)
+  // 프로필 로드 (bio, 감정 TOP3, 오늘의 감정 포함)
   useEffect(() => {
     const loadProfile = async () => {
       try {
@@ -35,6 +35,20 @@ const Profile: React.FC = () => {
             setProfile(prev => ({
               ...prev,
               bio: data.user.bio || '',
+            }));
+          }
+        }
+
+        // 오늘의 감정 로드 (프로필 카드 배경색)
+        const emotionRes = await fetch('/api/diary/today-emotion', {
+          credentials: 'include'
+        });
+        if (emotionRes.ok) {
+          const emotionData = await emotionRes.json();
+          if (emotionData.emotion) {
+            setProfile(prev => ({
+              ...prev,
+              todayEmotion: emotionData.emotion,
             }));
           }
         }
@@ -130,6 +144,20 @@ const Profile: React.FC = () => {
           
           // Navigation의 useAuth도 업데이트되도록 storage 이벤트 발생
           window.dispatchEvent(new Event('profileUpdated'));
+        }
+      }
+
+      // 오늘의 감정 다시 로드
+      const emotionRes = await fetch('/api/diary/today-emotion', {
+        credentials: 'include'
+      });
+      if (emotionRes.ok) {
+        const emotionData = await emotionRes.json();
+        if (emotionData.emotion) {
+          setProfile(prev => ({
+            ...prev,
+            todayEmotion: emotionData.emotion,
+          }));
         }
       }
 

@@ -4,14 +4,29 @@
   height: 240px;
   border-radius: 30px;
   overflow: hidden;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  
+  /* 글래스모피즘 효과 */
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  
+  /* 테두리 */
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  
+  /* 그림자 */
+  box-shadow: 
+    0 8px 32px rgba(0, 0, 0, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  
   transition: transform 0.3s ease, box-shadow 0.3s ease;
   cursor: pointer;
 }
 
 .profile-card:hover {
   transform: translateY(-4px);
-  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.15);
+  box-shadow: 
+    0 12px 48px rgba(0, 0, 0, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.25);
 }
 
 .profile-card.compact {
@@ -19,31 +34,81 @@
   height: 200px;
 }
 
-/* 배경 그라데이션 (감정 색상) */
+/* 배경 그라데이션 (감정 색상) - 연기 효과 */
 .profile-card-background {
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background: linear-gradient(135deg, var(--emotion-color, #a78bfa) 0%, var(--emotion-color-light, #c4b5fd) 100%);
-  opacity: 0.9;
+  background: 
+    linear-gradient(135deg, 
+      var(--emotion-color, #a78bfa) 0%, 
+      var(--emotion-color-light, #c4b5fd) 50%,
+      var(--emotion-color, #a78bfa) 100%
+    );
+  background-size: 250% 250%;
+  opacity: 0.4;
   z-index: 0;
+  animation: smokeMove 6s ease-in-out infinite;
 }
 
-/* 장식 패턴 */
+/* 연기 효과 애니메이션 */
+@keyframes smokeMove {
+  0% {
+    background-position: 0% 50%;
+    opacity: 0.3;
+  }
+  25% {
+    background-position: 50% 75%;
+    opacity: 0.5;
+  }
+  50% {
+    background-position: 100% 50%;
+    opacity: 0.35;
+  }
+  75% {
+    background-position: 50% 25%;
+    opacity: 0.5;
+  }
+  100% {
+    background-position: 0% 50%;
+    opacity: 0.3;
+  }
+}
+
+/* 장식 패턴 - 연기 효과 강화 */
 .profile-card-pattern {
-  position: relative;
+  position: absolute;
   width: 100%;
-  
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
   background-image: 
-    radial-gradient(circle at 20% 80%, rgba(255, 255, 255, 0.1) 0%, transparent 50%),
-    radial-gradient(circle at 80% 20%, rgba(255, 255, 255, 0.08) 0%, transparent 50%);
+    radial-gradient(ellipse at 20% 80%, rgba(255, 255, 255, 0.2) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 20%, rgba(255, 255, 255, 0.15) 0%, transparent 50%),
+    radial-gradient(circle at 50% 50%, var(--emotion-color, #a78bfa) 0%, transparent 70%);
+  background-size: 200% 200%;
+  opacity: 0.4;
   z-index: 1;
+  animation: smokePattern 8s ease-in-out infinite;
+}
+
+/* 패턴 연기 효과 */
+@keyframes smokePattern {
+  0%, 100% {
+    background-position: 0% 0%, 100% 100%, 50% 50%;
+    opacity: 0.3;
+  }
+  33% {
+    background-position: 50% 30%, 70% 80%, 40% 60%;
+    opacity: 0.5;
+  }
+  66% {
+    background-position: 100% 50%, 30% 70%, 60% 40%;
+    opacity: 0.4;
+  }
 }
 
 /* 카드 내용 */
@@ -90,7 +155,7 @@
   border: 4px solid rgba(255, 255, 255, 0.9);
   object-fit: cover;
   background: rgba(255, 255, 255, 0.2);
-  backdrop-filter: blur(10px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
 }
 
 .profile-card.compact .profile-image {
@@ -106,13 +171,16 @@
   border-radius: 50%;
   border: 4px solid rgba(255, 255, 255, 0.9);
   background: rgba(255, 255, 255, 0.3);
-  backdrop-filter: blur(10px);
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 48px;
   font-weight: bold;
   color: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+  text-shadow: 
+    0 2px 8px rgba(0, 0, 0, 0.5),
+    0 0 20px rgba(255, 255, 255, 0.3);
   text-transform: uppercase;
 }
 
@@ -123,7 +191,7 @@
   border-width: 3px;
 }
 
-/* 온라인 상태 인디케이터 */
+/* 온라인 상태 인디케이터 - 글래스모피즘 */
 .profile-online-indicator {
   position: absolute;
   bottom: 2px;
@@ -132,8 +200,13 @@
   height: 18px;
   border-radius: 50%;
   background: #10b981;
-  border: 3px solid white;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  border: 3px solid rgba(255, 255, 255, 0.8);
+  box-shadow: 
+    0 2px 12px rgba(16, 185, 129, 0.5),
+    0 0 20px rgba(16, 185, 129, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.4);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
 }
 
 .profile-card.compact .profile-online-indicator {
@@ -151,22 +224,26 @@
   padding: 12px 20px;
   
   /* 글래스모피즘 효과 */
-  background: rgba(255, 255, 255, 0.15);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  background: rgba(104, 104, 104, 0.2);
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px);
   
   /* 테두리 */
-  border: 1px solid rgba(255, 255, 255, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.35);
   border-radius: 20px;
   
   /* 그림자 */
   box-shadow: 
-    0 4px 16px rgba(0, 0, 0, 0.1),
-    inset 0 1px 0 rgba(255, 255, 255, 0.4);
+    0 4px 20px rgba(0, 0, 0, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 0.5),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.1);
   
   /* 텍스트 */
-  color: rgba(255, 255, 255, 0.95);
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  color: #ffffff;
+  text-shadow: 
+    0 2px 8px rgba(0, 0, 0, 0.4),
+    0 0 20px rgba(255, 255, 255, 0.2);
+  -webkit-font-smoothing: antialiased;
   
   overflow: hidden;
   text-overflow: ellipsis;
@@ -193,8 +270,12 @@
   font-size: 24px;
   font-weight: 700;
   margin: 0;
+  padding: 0 10px;
   text-align: left;
-  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  /* 강화된 텍스트 그림자 */
+  
+  color: #ffffff;
+  -webkit-font-smoothing: antialiased;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
