@@ -1,6 +1,7 @@
 // Chat.tsx — AI와 채팅하는 페이지 (프론트엔드 채팅 인터페이스)
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom"; // 페이지 이동용 훅
+import { useDisplay } from "../contexts/DisplayContext";
 import { useAuth } from "../hooks/useAuth"; // 로그인 상태 관리용 커스텀 훅
 import { useToast } from "../components/Toast"; // Toast 알림 시스템
 import "./Chat.css";
@@ -13,9 +14,22 @@ type AiMsg = { role: 'user' | 'assistant'; content: string };
 import type { EnhancedMood, EmotionDetail } from '../types/api';
 
 const Chat: React.FC = () => {
-    const navigate = useNavigate(); // 로그인 안 된 사용자를 리다이렉트하기 위해 사용
+
+    // 로그인 안 된 사용자를 리다이렉트하기 위해 사용
+    const navigate = useNavigate();
+
+    // 추가 페이지 활성화 설정
+    const { setDisplayContent } = useDisplay();
+
     const location = useLocation(); // Home에서 전달된 state를 받기 위해 사용
-    const { user } = useAuth(); // 로그인 상태 확인
+
+    // user: 사용자 정보
+    let { user, refresh } = useAuth();
+    // +
+    // userRef: useAuth()로 받은 user의 최신 값을 보관합니다.
+    const userRef = useRef(user);
+    useEffect(() => { userRef.current = user; }, [user]);
+
     const { showToast, ToastContainer } = useToast(); // Toast 알림
     const [msgs, setMsgs] = useState<AiMsg[]>([
         // 초기 메시지(첫 인사)
@@ -24,7 +38,7 @@ const Chat: React.FC = () => {
     const [input, setInput] = useState(""); // 사용자가 입력 중인 텍스트
     const [sending, setSending] = useState(false); // 메시지 전송 중 여부
     const [typing, setTyping] = useState(false); // AI가 "답변 생성 중" 상태 표시용
-    
+
     // 감정 진단 관련 상태
     const [messageCount, setMessageCount] = useState<number>(0); // 사용자 메시지 개수
     const [mood, setMood] = useState<{ emotion: string; score: number; color: string } | null>(null);
@@ -33,7 +47,7 @@ const Chat: React.FC = () => {
     const [savingToDiary, setSavingToDiary] = useState(false); // 다이어리 저장 중
     const [emotionColor, setEmotionColor] = useState<string | null>(null); // 감정 색상
     const MIN_REQUIRED_MESSAGES = 5; // 최소 요구 메시지 수
-    
+
     const bottomRef = useRef<HTMLDivElement | null>(null); // 스크롤 맨 아래로 이동시키기 위한 참조
     const textareaRef = useRef<HTMLTextAreaElement | null>(null); // textarea 참조
     // 이전에 변경한 바디/네비(nav) 배경을 저장해서 컴포넌트 언마운트 시 복원하기 위한 레퍼런스
@@ -55,16 +69,16 @@ const Chat: React.FC = () => {
                 // Home에서 새 대화로 넘어온 경우만 이전 기록 불러오지 않음
                 const state = location.state as { initialMessage?: string; isNewChat?: boolean } | null;
                 const isNewChat = state?.isNewChat || !!state?.initialMessage;
-                
+
                 if (isNewChat) {
                     // 새 대화이므로 이전 기록을 불러오지 않음
                     return;
                 }
-                
+
                 // ⚠️ 여기가 핵심: state가 없으면 (직접 접속, 새로고침 등) 이전 기록 불러오지 않음
                 // 항상 새 대화로 시작
                 return;
-                
+
                 // 아래 코드는 실행되지 않음 (주석 처리된 것과 같음)
                 // eslint-disable-next-line no-unreachable
                 const res = await fetch('/api/ai/history', { credentials: 'include' });
@@ -87,52 +101,52 @@ const Chat: React.FC = () => {
     // Home에서 전달된 initialMessage 자동 전송 처리
     useEffect(() => {
         const state = location.state as { initialMessage?: string; isNewChat?: boolean } | null;
-        
+
         // 이미 처리했거나 initialMessage가 없거나 전송 중이면 무시
         if (!state?.initialMessage || initialMessageProcessedRef.current || sending) {
             return;
         }
-        
+
         const initialMsg = state.initialMessage;
-        
+
         // 처리 완료 플래그 설정 (중복 실행 방지)
         initialMessageProcessedRef.current = true;
-        
+
         // state 즉시 초기화 (뒤로가기 시 중복 실행 방지)
         window.history.replaceState({}, document.title);
-        
+
         // 입력창에 메시지 설정
         setInput(initialMsg);
-        
+
         // 약간의 딜레이 후 자동 전송
         setTimeout(async () => {
             const prompt = initialMsg.trim();
             if (!prompt) return;
-            
+
             setSending(true);
             setTyping(true);
-            
+
             // 사용자 메시지 생성
             const userMessage = { role: 'user' as const, content: prompt };
-            
+
             // 1. UI에 사용자 메시지 추가
             setMsgs(prev => [...prev, userMessage]);
             setInput("");
             setMessageCount(prev => prev + 1);
-            
+
             // 2. 로딩 메시지 추가
             setMsgs(prev => [...prev, { role: 'assistant', content: '…' }]);
-            
+
             // 3. 상태 업데이트를 기다림
             await new Promise(resolve => setTimeout(resolve, 50));
-            
+
             // 4. ref에서 최신 상태 읽기 (로딩 메시지 제외)
             const messagesToSend = msgsRef.current.slice(0, -1);
-            
+
             try {
                 console.log('Sending to API:', messagesToSend); // 디버깅용
                 console.log('Messages count:', messagesToSend.length); // 개수 확인
-                
+
                 if (!messagesToSend || messagesToSend.length === 0) {
                     console.error('messagesToSend is empty!');
                     setMsgs((prev) => [
@@ -143,14 +157,14 @@ const Chat: React.FC = () => {
                     setTyping(false);
                     return;
                 }
-                
+
                 const res = await fetch('/api/ai/chat', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     credentials: 'include',
                     body: JSON.stringify({ messages: messagesToSend }),
                 });
-                
+
                 if (!res.ok) {
                     const errorText = await res.text();
                     console.error('API Error:', res.status, errorText);
@@ -162,15 +176,15 @@ const Chat: React.FC = () => {
                     setTyping(false);
                     return;
                 }
-                
+
                 const data = await res.json();
                 console.log('API Response:', data); // 서버 응답 확인
                 console.log('Content field:', data.content); // content 필드 확인
                 console.log('Reply field:', data.reply); // reply 필드 확인
-                
+
                 // 서버는 'content' 필드로 응답하지만, 이전 코드는 'reply'를 기대함
                 const aiReply = data.content || data.reply || '답변을 생성할 수 없습니다.';
-                
+
                 // 5. 로딩 메시지를 AI 응답으로 교체
                 setMsgs((prev) => [
                     ...prev.slice(0, -1),
@@ -236,12 +250,6 @@ const Chat: React.FC = () => {
             rgb(${r4}, ${g4}, ${b4}) 100%
         )`;
     };
-
-    // 로그인 상태 확인: 로그인 안 되어 있으면 /login으로 이동
-    // useEffect(() => {
-    //     if (loading) return; // 아직 로딩 중이면 대기
-    //     if (!user) navigate('/login'); // 로그인 안 되어 있으면 로그인 페이지로
-    // }, [loading, user, navigate]);
 
     // 메시지가 변경될 때마다(추가될 때마다) 자동으로 스크롤 아래로 이동
     useEffect(() => {
@@ -331,13 +339,13 @@ const Chat: React.FC = () => {
                     try {
                         // 감정 색상 state 업데이트 (배경 그라데이션에 사용)
                         setEmotionColor(json.color);
-                        
+
                         // 바디 배경을 변경하기 전에 이전 값을 저장
                         if (prevBodyBgRef.current === null) {
                             prevBodyBgRef.current = document.body.style.backgroundColor || '';
                         }
                         // Chat 페이지 전용 표시자 설정 (다른 페이지에서 흰색 강제화에 사용)
-                        try { document.body.dataset.chatBg = '1'; } catch {}
+                        try { document.body.dataset.chatBg = '1'; } catch { }
                         // body 배경은 투명으로 (그라데이션 배경이 보이도록)
                         document.body.style.backgroundColor = 'transparent';
 
@@ -366,11 +374,11 @@ const Chat: React.FC = () => {
 
             // 마지막 "…"을 실제 AI 응답으로 교체
             setMsgs((prev) => [...prev.slice(0, -1), { role: 'assistant', content }]);
-            
+
             // 사용자 메시지 개수 업데이트 (첫 인사 메시지 제외)
             const userMsgCount = next.filter(m => m.role === 'user').length;
             setMessageCount(userMsgCount);
-            
+
             // 5번 대화 도달 시 자동으로 감정 분석 실행
             if (userMsgCount === MIN_REQUIRED_MESSAGES && !mood) {
                 setTimeout(() => {
@@ -392,37 +400,37 @@ const Chat: React.FC = () => {
     // 엔터 키로 전송, Shift+Enter로 줄바꿈
     const onKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
         // IME(한글 입력 중 등) 상태가 아닐 때만 엔터로 전송
-    if (e.key === 'Enter' && !e.shiftKey && !(e as unknown as { nativeEvent?: { isComposing?: boolean } }).nativeEvent?.isComposing) {
+        if (e.key === 'Enter' && !e.shiftKey && !(e as unknown as { nativeEvent?: { isComposing?: boolean } }).nativeEvent?.isComposing) {
             e.preventDefault(); // 줄바꿈 방지
             void send(); // 비동기로 전송
         }
     };
-    
+
     // 감정 분석 함수
     const analyzeEmotion = async () => {
         if (isAnalyzing || messageCount < 2) return; // 최소 2개 메시지 필요
-        
+
         setIsAnalyzing(true);
-        
+
         try {
             // 사용자 메시지만 추출 (첫 인사 메시지 제외)
             const userMessages = msgs.slice(1).filter(m => m.role === 'user' && m.content.trim() && m.content !== '…');
-            
+
             if (userMessages.length === 0) {
                 showToast({ message: '분석할 메시지가 없습니다.', type: 'warning', duration: 2500 });
                 return;
             }
-            
+
             // 최근 5개 메시지만 사용 (일관성 유지)
             const recentMessages = userMessages.slice(-5);
             const allText = recentMessages.map(m => m.content).join(' ');
-            
+
             console.log('📝 Chat.tsx 감정 분석:', {
                 totalMessages: userMessages.length,
                 analyzingCount: recentMessages.length,
                 textPreview: allText.slice(-100)
             });
-            
+
             // 복합 감정 분석 API 호출 (enhanced=true)
             const res = await fetch('/api/ai/analyze-emotion', {
                 method: 'POST',
@@ -430,35 +438,35 @@ const Chat: React.FC = () => {
                 credentials: 'include',
                 body: JSON.stringify({ text: allText, enhanced: true })
             });
-            
+
             if (!res.ok) {
                 throw new Error('감정 분석에 실패했습니다.');
             }
-            
+
             const data = await res.json();
             const analyzedMood = data?.mood;
             const analyzedEnhancedMood = data?.enhancedMood;
-            
+
             if (analyzedMood && analyzedMood.emotion && analyzedMood.color) {
                 setMood(analyzedMood);
                 setEnhancedMood(analyzedEnhancedMood); // 복합 감정 데이터 저장
                 setEmotionColor(analyzedMood.color); // 배경 그라데이션 색상 업데이트
-                
+
                 console.log('✅ Chat.tsx 감정 분석 완료:', analyzedMood);
                 console.log('🌈 Chat.tsx 복합 감정:', analyzedEnhancedMood);
-                
+
                 // 복합 감정 정보 포함한 Toast 메시지
                 let toastMessage = `✨ 감정 분석 완료! ${analyzedMood.emotion} (${Math.round(analyzedMood.score * 100)}%)`;
-                
+
                 if (analyzedEnhancedMood) {
                     const { secondary, trend } = analyzedEnhancedMood;
-                    
+
                     // 부 감정이 있으면 표시
                     if (secondary && secondary.length > 0) {
                         const secondaryNames = secondary.map((s: EmotionDetail) => s.emotion).join(', ');
                         toastMessage += `\n+ ${secondaryNames}`;
                     }
-                    
+
                     // 추세 표시
                     if (trend) {
                         const trendEmoji = trend === 'improving' ? '📈' : trend === 'declining' ? '📉' : '➡️';
@@ -466,11 +474,11 @@ const Chat: React.FC = () => {
                         toastMessage += `\n${trendEmoji} ${trendText}`;
                     }
                 }
-                
-                showToast({ 
-                    message: toastMessage, 
-                    type: 'success', 
-                    duration: 5000 
+
+                showToast({
+                    message: toastMessage,
+                    type: 'success',
+                    duration: 5000
                 });
             } else {
                 throw new Error('감정 분석 결과가 유효하지 않습니다.');
@@ -483,40 +491,44 @@ const Chat: React.FC = () => {
             setIsAnalyzing(false);
         }
     };
-    
+
     // 다이어리에 저장 함수
     const saveToDiary = async () => {
         if (savingToDiary) return;
-        
-        if (!user) {
+
+        await refresh();
+
+        await new Promise(resolve => setTimeout(resolve, 100));
+
+        if (!userRef.current?.id) {
             showToast({ message: '로그인이 필요합니다.', type: 'warning', duration: 3000 });
-            setTimeout(() => navigate('/login'), 1500);
+            setTimeout(() => setDisplayContent("login"), 1500);
             return;
         }
-        
+
         if (msgs.length <= 1) {
             showToast({ message: '저장할 대화 내용이 없습니다.', type: 'info', duration: 2500 });
             return;
         }
-        
+
         if (!mood) {
-            showToast({ 
-                message: '감정 진단을 먼저 완료해주세요. 🎨', 
-                type: 'warning', 
-                duration: 3000 
+            showToast({
+                message: '감정 진단을 먼저 완료해주세요. 🎨',
+                type: 'warning',
+                duration: 3000
             });
             return;
         }
-        
+
         const confirmSave = confirm('현재 대화를 다이어리에 저장하시겠습니까?');
         if (!confirmSave) return;
-        
+
         setSavingToDiary(true);
-        
+
         try {
             const today = new Date();
             const dateKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-            
+
             // 다이어리 세션 생성
             const createRes = await fetch('/api/diary/session', {
                 method: 'POST',
@@ -524,36 +536,36 @@ const Chat: React.FC = () => {
                 credentials: 'include',
                 body: JSON.stringify({ date: dateKey, type: 'ai' })
             });
-            
+
             if (!createRes.ok) {
                 throw new Error('다이어리 세션 생성 실패');
             }
-            
+
             const createData = await createRes.json();
             const sessionId = createData.id;
-            
+
             // 대화 내용 저장 (첫 인사 메시지 제외)
             const messagesToSave = msgs.slice(1).filter(m => m.content.trim() && m.content !== '…');
-            
+
             const importRes = await fetch(`/api/diary/session/${sessionId}/import`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 credentials: 'include',
                 body: JSON.stringify({ messages: messagesToSave })
             });
-            
+
             if (!importRes.ok) {
                 throw new Error('다이어리 저장 실패');
             }
-            
+
             const importData = await importRes.json();
-            
-            showToast({ 
-                message: `${importData.imported}개의 메시지가 다이어리에 저장되었습니다! 🎉`, 
-                type: 'success', 
-                duration: 3500 
+
+            showToast({
+                message: `${importData.imported}개의 메시지가 다이어리에 저장되었습니다! 🎉`,
+                type: 'success',
+                duration: 3500
             });
-            
+
             const goToDiary = confirm('다이어리 페이지로 이동하시겠습니까?');
             if (goToDiary) {
                 navigate('/diary');
@@ -644,14 +656,14 @@ const Chat: React.FC = () => {
     return (
         <>
             {/* 회전하는 그라데이션 배경 */}
-            <div 
-                className="chat-animated-bg" 
+            <div
+                className="chat-animated-bg"
                 style={emotionColor ? {
                     backgroundImage: generateGradientFromColor(emotionColor),
                     backgroundSize: '400% 400%'
                 } : undefined}
             />
-            
+
             <ToastContainer />
             <div style={{ maxWidth: 720, margin: '0 auto', padding: '24px 16px', position: 'relative', zIndex: 1 }}>
                 <h2 style={{ textAlign: 'center', margin: '8px 0 16px', color: '#fff', textShadow: '0 2px 4px rgba(0,0,0,0.2)' }}>AI 채팅 페이지</h2>
@@ -661,13 +673,13 @@ const Chat: React.FC = () => {
                     margin: '0 0 16px',
                     padding: '16px',
                     borderRadius: 12,
-                    background: mood 
+                    background: mood
                         ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.95) 0%, rgba(5, 150, 105, 0.95) 100%)'
                         : isAnalyzing
                             ? 'linear-gradient(135deg, rgba(99, 102, 241, 0.95) 0%, rgba(139, 92, 246, 0.95) 100%)'
                             : 'linear-gradient(135deg, rgba(251, 191, 36, 0.95) 0%, rgba(245, 158, 11, 0.95) 100%)',
-                    border: mood 
-                        ? '2px solid rgba(16, 185, 129, 0.3)' 
+                    border: mood
+                        ? '2px solid rgba(16, 185, 129, 0.3)'
                         : isAnalyzing
                             ? '2px solid rgba(99, 102, 241, 0.3)'
                             : '2px solid rgba(251, 191, 36, 0.3)',
@@ -675,9 +687,9 @@ const Chat: React.FC = () => {
                     boxShadow: '0 4px 20px rgba(0,0,0,0.15)'
                 }}>
                     {/* 상단 헤더 영역 */}
-                    <div style={{ 
-                        display: 'flex', 
-                        alignItems: 'flex-start', 
+                    <div style={{
+                        display: 'flex',
+                        alignItems: 'flex-start',
                         justifyContent: 'space-between',
                         marginBottom: 12,
                         gap: 12
@@ -689,10 +701,10 @@ const Chat: React.FC = () => {
                             </span>
                             <div>
                                 <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 4, color: '#fff' }}>
-                                    {mood 
-                                        ? '진단 완료' 
-                                        : isAnalyzing 
-                                            ? '진단 중...' 
+                                    {mood
+                                        ? '진단 완료'
+                                        : isAnalyzing
+                                            ? '진단 중...'
                                             : `진단 전 (${messageCount}/${MIN_REQUIRED_MESSAGES})`
                                     }
                                 </div>
@@ -703,15 +715,15 @@ const Chat: React.FC = () => {
                                 )}
                                 {!mood && !isAnalyzing && messageCount >= 2 && (
                                     <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.85)' }}>
-                                        {messageCount >= MIN_REQUIRED_MESSAGES 
-                                            ? '감정 분석을 시작할 수 있습니다' 
+                                        {messageCount >= MIN_REQUIRED_MESSAGES
+                                            ? '감정 분석을 시작할 수 있습니다'
                                             : `${MIN_REQUIRED_MESSAGES - messageCount}번 더 대화하면 분석 가능합니다`
                                         }
                                     </div>
                                 )}
                             </div>
                         </div>
-                        
+
                         {/* 우측: 진단하기 버튼 (진단 전/중일 때만) */}
                         {!mood && messageCount >= 2 && !isAnalyzing && (
                             <button
@@ -737,7 +749,7 @@ const Chat: React.FC = () => {
                             </button>
                         )}
                     </div>
-                    
+
                     {/* 진단 완료 시: 컬러 코드 + 복합 감정 + 다이어리 추가 버튼 */}
                     {mood && (
                         <>
@@ -777,7 +789,7 @@ const Chat: React.FC = () => {
                                     </code>
                                 </div>
                             </div>
-                            
+
                             {/* 복합 감정 분석 결과 표시 */}
                             {enhancedMood && (
                                 <div style={{
@@ -786,19 +798,19 @@ const Chat: React.FC = () => {
                                     background: 'rgba(255, 255, 255, 0.6)',
                                     marginBottom: 12
                                 }}>
-                                    <div style={{ 
-                                        fontSize: 14, 
-                                        fontWeight: 600, 
+                                    <div style={{
+                                        fontSize: 14,
+                                        fontWeight: 600,
                                         marginBottom: 8,
                                         color: '#374151'
                                     }}>
                                         🌈 감정 분석 상세
                                     </div>
-                                    
+
                                     {/* 부 감정 표시 */}
                                     {enhancedMood.secondary && enhancedMood.secondary.length > 0 && (
-                                        <div style={{ 
-                                            fontSize: 13, 
+                                        <div style={{
+                                            fontSize: 13,
                                             marginBottom: 6,
                                             display: 'flex',
                                             alignItems: 'center',
@@ -807,7 +819,7 @@ const Chat: React.FC = () => {
                                         }}>
                                             <span style={{ color: '#6b7280' }}>함께 느껴지는 감정:</span>
                                             {enhancedMood.secondary.map((s: EmotionDetail, idx: number) => (
-                                                <span 
+                                                <span
                                                     key={idx}
                                                     style={{
                                                         padding: '2px 8px',
@@ -823,11 +835,11 @@ const Chat: React.FC = () => {
                                             ))}
                                         </div>
                                     )}
-                                    
+
                                     {/* 추세 표시 */}
                                     {enhancedMood.trend && (
-                                        <div style={{ 
-                                            fontSize: 13, 
+                                        <div style={{
+                                            fontSize: 13,
                                             marginBottom: 6,
                                             display: 'flex',
                                             alignItems: 'center',
@@ -841,10 +853,10 @@ const Chat: React.FC = () => {
                                             </span>
                                         </div>
                                     )}
-                                    
+
                                     {/* 트리거 단어 표시 */}
                                     {enhancedMood.triggerWords && enhancedMood.triggerWords.length > 0 && (
-                                        <div style={{ 
+                                        <div style={{
                                             fontSize: 13,
                                             display: 'flex',
                                             alignItems: 'flex-start',
@@ -853,7 +865,7 @@ const Chat: React.FC = () => {
                                             <span style={{ color: '#6b7280', flexShrink: 0 }}>주요 키워드:</span>
                                             <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
                                                 {enhancedMood.triggerWords.map((word: string, idx: number) => (
-                                                    <span 
+                                                    <span
                                                         key={idx}
                                                         style={{
                                                             padding: '2px 6px',
@@ -872,7 +884,7 @@ const Chat: React.FC = () => {
                                     )}
                                 </div>
                             )}
-                            
+
                             <button
                                 onClick={() => void saveToDiary()}
                                 disabled={savingToDiary}
@@ -881,7 +893,7 @@ const Chat: React.FC = () => {
                                     padding: '12px 20px',
                                     borderRadius: 10,
                                     border: '2px solid rgba(255, 255, 255, 0.5)',
-                                    background: savingToDiary 
+                                    background: savingToDiary
                                         ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.5) 0%, rgba(5, 150, 105, 0.5) 100%)'
                                         : 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
                                     color: '#fff',
@@ -899,112 +911,112 @@ const Chat: React.FC = () => {
                 </div>
 
                 {/* 채팅 메시지 영역 */}
-            <div
-                style={{
-                    border: '1px solid rgba(255, 255, 255, 0.3)',
-                    borderRadius: 12,
-                    height: '60vh',
-                    minHeight: 360,
-                    padding: 12,
-                    overflowY: 'auto',
-                    background: 'rgba(255, 255, 255, 0.85)',
-                    backdropFilter: 'blur(10px)',
-                    boxShadow: '0 4px 20px rgba(0,0,0,0.15)'
-                }}
-            >
-                {/* 모든 메시지 렌더링 */}
-                {msgs.map(bubble)}
-
-                {/* AI 타이핑 중일 때 점 3개 표시 */}
-                {typing && (
-                    <div style={{ display: 'flex', justifyContent: 'flex-start', marginBottom: 8 }}>
-                        <div
-                            aria-hidden
-                            style={{
-                                width: 28,
-                                height: 28,
-                                borderRadius: 14,
-                                background: '#eee',
-                                color: '#333',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                fontSize: 12,
-                                marginRight: 8,
-                            }}
-                        >
-                            AI
-                        </div>
-                        <div
-                            style={{
-                                background: '#f1f5f9',
-                                color: '#111',
-                                padding: '8px 12px',
-                                borderRadius: 12,
-                                borderTopLeftRadius: 2,
-                            }}
-                        >
-                            {/* 점 3개 애니메이션 */}
-                            <span style={{ display: 'inline-block', width: 48 }}>
-                                <span className="dot" style={{ animation: 'blink 1.2s infinite' }}>●</span>
-                                <span className="dot" style={{ marginLeft: 4, animation: 'blink 1.2s infinite 0.2s' }}>●</span>
-                                <span className="dot" style={{ marginLeft: 4, animation: 'blink 1.2s infinite 0.4s' }}>●</span>
-                            </span>
-                        </div>
-                    </div>
-                )}
-
-                {/* 스크롤 맨 아래를 가리키는 ref (새 메시지 도착 시 자동 스크롤) */}
-                <div ref={bottomRef} />
-            </div>
-
-            {/* 입력창 + 전송 버튼 */}
-            <form
-                onSubmit={(e) => {
-                    e.preventDefault();
-                    void send(); // 엔터로 전송
-                }}
-                style={{ display: 'flex', alignItems: 'flex-end', gap: 8, marginTop: 12 }}
-            >
-                <textarea
-                    ref={textareaRef}
-                    value={input}
-                    onChange={(e) => setInput(e.target.value)}
-                    onKeyDown={onKeyDown}
-                    placeholder="메시지를 입력하고 Enter로 전송 (Shift+Enter 줄바꿈)"
-                    rows={2}
+                <div
                     style={{
-                        flex: 1,
-                        padding: 10,
                         border: '1px solid rgba(255, 255, 255, 0.3)',
-                        borderRadius: 8,
-                        resize: 'vertical',
-                        background: 'rgba(255, 255, 255, 0.9)',
+                        borderRadius: 12,
+                        height: '60vh',
+                        minHeight: 360,
+                        padding: 12,
+                        overflowY: 'auto',
+                        background: 'rgba(255, 255, 255, 0.85)',
                         backdropFilter: 'blur(10px)',
-                        boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
-                    }}
-                />
-                <button
-                    type="submit"
-                    disabled={sending || !input.trim()}
-                    style={{
-                        padding: '10px 14px',
-                        borderRadius: 8,
-                        border: 'none',
-                        background: sending 
-                            ? 'rgba(147, 197, 253, 0.8)' 
-                            : 'linear-gradient(135deg, #2563eb 0%, #1e40af 100%)',
-                        color: '#fff',
-                        cursor: sending ? 'not-allowed' : 'pointer',
-                        fontWeight: 700,
-                        boxShadow: sending ? 'none' : '0 4px 12px rgba(37, 99, 235, 0.4)',
-                        transition: 'all 0.3s ease'
+                        boxShadow: '0 4px 20px rgba(0,0,0,0.15)'
                     }}
                 >
-                    {sending ? '전송중…' : '전송'}
-                </button>
-            </form>
-        </div>
+                    {/* 모든 메시지 렌더링 */}
+                    {msgs.map(bubble)}
+
+                    {/* AI 타이핑 중일 때 점 3개 표시 */}
+                    {typing && (
+                        <div style={{ display: 'flex', justifyContent: 'flex-start', marginBottom: 8 }}>
+                            <div
+                                aria-hidden
+                                style={{
+                                    width: 28,
+                                    height: 28,
+                                    borderRadius: 14,
+                                    background: '#eee',
+                                    color: '#333',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    fontSize: 12,
+                                    marginRight: 8,
+                                }}
+                            >
+                                AI
+                            </div>
+                            <div
+                                style={{
+                                    background: '#f1f5f9',
+                                    color: '#111',
+                                    padding: '8px 12px',
+                                    borderRadius: 12,
+                                    borderTopLeftRadius: 2,
+                                }}
+                            >
+                                {/* 점 3개 애니메이션 */}
+                                <span style={{ display: 'inline-block', width: 48 }}>
+                                    <span className="dot" style={{ animation: 'blink 1.2s infinite' }}>●</span>
+                                    <span className="dot" style={{ marginLeft: 4, animation: 'blink 1.2s infinite 0.2s' }}>●</span>
+                                    <span className="dot" style={{ marginLeft: 4, animation: 'blink 1.2s infinite 0.4s' }}>●</span>
+                                </span>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* 스크롤 맨 아래를 가리키는 ref (새 메시지 도착 시 자동 스크롤) */}
+                    <div ref={bottomRef} />
+                </div>
+
+                {/* 입력창 + 전송 버튼 */}
+                <form
+                    onSubmit={(e) => {
+                        e.preventDefault();
+                        void send(); // 엔터로 전송
+                    }}
+                    style={{ display: 'flex', alignItems: 'flex-end', gap: 8, marginTop: 12 }}
+                >
+                    <textarea
+                        ref={textareaRef}
+                        value={input}
+                        onChange={(e) => setInput(e.target.value)}
+                        onKeyDown={onKeyDown}
+                        placeholder="메시지를 입력하고 Enter로 전송 (Shift+Enter 줄바꿈)"
+                        rows={2}
+                        style={{
+                            flex: 1,
+                            padding: 10,
+                            border: '1px solid rgba(255, 255, 255, 0.3)',
+                            borderRadius: 8,
+                            resize: 'vertical',
+                            background: 'rgba(255, 255, 255, 0.9)',
+                            backdropFilter: 'blur(10px)',
+                            boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+                        }}
+                    />
+                    <button
+                        type="submit"
+                        disabled={sending || !input.trim()}
+                        style={{
+                            padding: '10px 14px',
+                            borderRadius: 8,
+                            border: 'none',
+                            background: sending
+                                ? 'rgba(147, 197, 253, 0.8)'
+                                : 'linear-gradient(135deg, #2563eb 0%, #1e40af 100%)',
+                            color: '#fff',
+                            cursor: sending ? 'not-allowed' : 'pointer',
+                            fontWeight: 700,
+                            boxShadow: sending ? 'none' : '0 4px 12px rgba(37, 99, 235, 0.4)',
+                            transition: 'all 0.3s ease'
+                        }}
+                    >
+                        {sending ? '전송중…' : '전송'}
+                    </button>
+                </form>
+            </div>
         </>
     );
 }

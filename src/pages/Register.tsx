@@ -2,6 +2,7 @@
 // 회원가입 페이지입니다.
 
 import { useNavigate } from "react-router-dom";
+import { useDisplay } from "../contexts/DisplayContext";
 import { useState } from "react";
 import { useToast } from "../components/Toast";
 import "../styles/Register.css";
@@ -10,12 +11,16 @@ export default function Register() {
 
     // navigate: 페이지를 이동할 때 사용
     const navigate = useNavigate();
+
+    // 추가 페이지 활성화 설정
+    const { setDisplayContent } = useDisplay();
+
     const { showToast, ToastContainer } = useToast();
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [passwordConfirm, setPasswordConfirm] = useState("");
     const [loading, setLoading] = useState(false);
-    
+
     // 약관 동의 상태
     const [agreeAll, setAgreeAll] = useState(false);
     const [agreeTerms, setAgreeTerms] = useState(false);
@@ -85,7 +90,7 @@ export default function Register() {
                 throw new Error(msg);
             }
             showToast({ message: "회원가입 성공! 로그인해주세요. 🎉", type: 'success', duration: 2500 });
-            setTimeout(() => navigate("/login"), 1000);
+            setTimeout(() => setDisplayContent("login"), 1000);
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : "네트워크 오류가 발생했습니다.";
             showToast({ message: errorMessage, type: 'error' });
@@ -94,13 +99,20 @@ export default function Register() {
         }
     };
 
+    // login: 로그인 버튼
+    const login = () => {
+
+        // 로그인 페이지 활성화
+        setDisplayContent("login");
+    }
+
     return (
         <>
             <ToastContainer />
             <div className="register-wrapper">
                 <div className="register-container">
                     <h1 className="register-title">토닥톡</h1>
-                    
+
                     <h2 className="register-subtitle">회원가입</h2>
 
                     <form onSubmit={handleSubmit} className="register-form">
@@ -252,7 +264,7 @@ export default function Register() {
                         <span style={{ color: 'var(--text-tertiary)' }}>
                             이미 계정이 있으신가요?
                         </span>
-                        <a href="/login" className="register-link" style={{ fontWeight: 'var(--font-weight-medium)' }}>
+                        <a href="#" onClick={login} className="register-link" style={{ fontWeight: 'var(--font-weight-medium)' }}>
                             로그인
                         </a>
                     </div>

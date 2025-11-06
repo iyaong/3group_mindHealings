@@ -2,6 +2,7 @@
 // 상단에 고정되어 있는 메뉴창입니다.
 
 import { useNavigate, NavLink, useLocation } from "react-router-dom";
+import { useDisplay } from "../contexts/DisplayContext";
 import { useEffect } from "react";
 import { useAuth } from "../hooks/useAuth";
 
@@ -9,7 +10,12 @@ export default function Navigation() {
 
     // navigate: 페이지를 이동할 때 사용
     const navigate = useNavigate();
+
+    // 추가 페이지 활성화 설정
+    const { setDisplayContent } = useDisplay();
+
     const { user, loading, refresh, logout } = useAuth();
+
     const onLogout = async () => {
         try { await logout(); } finally { navigate('/'); }
     };
@@ -38,15 +44,15 @@ export default function Navigation() {
     // login: 로그인 버튼
     const login = () => {
 
-        // 페이지 이동("경로");
-        navigate("/login");
+        // 로그인 페이지 활성화
+        setDisplayContent("login");
     }
 
     // register: 회원가입 버튼
     const register = () => {
 
-        // 페이지 이동("경로");
-        navigate("/register");
+        // 회원가입 페이지 활성화
+        setDisplayContent("register");
     }
 
     const goHome = () => {
@@ -97,35 +103,30 @@ export default function Navigation() {
                 >
                     챗온
                 </NavLink>
+                {user && (
+                    <NavLink
+                        to="/profile"
+                        style={({ isActive }) => ({
+                            padding: "6px 10px",
+                            borderRadius: 8,
+                            textDecoration: "none",
+                            border: isActive ? "1px solid #2563eb" : "1px solid transparent",
+                            background: isActive ? "#eef2ff" : "transparent",
+                            color: isActive ? "#1e3a8a" : "#111",
+                            fontWeight: 600,
+                        })}
+                    >
+                        프로필
+                    </NavLink>
+                )}
             </div>
 
             {loading ? (
                 <span>상태 확인 중...</span>
-        ) : user ? (
+            ) : user ? (
                 <>
-                    <span 
-                        onClick={() => navigate('/profile')}
-                        style={{ 
-                            color: "#667eea", 
-                            cursor: "pointer",
-                            fontWeight: 600,
-                            padding: "6px 12px",
-                            borderRadius: 8,
-                            transition: "all 0.2s ease",
-                        }}
-                        onMouseEnter={(e) => {
-                            e.currentTarget.style.background = "#eef2ff";
-                            e.currentTarget.style.color = "#1e3a8a";
-                        }}
-                        onMouseLeave={(e) => {
-                            e.currentTarget.style.background = "transparent";
-                            e.currentTarget.style.color = "#667eea";
-                        }}
-                        title="프로필 설정"
-                    >
-                        {user.nickname || user.email}{" 님"}
-                    </span>
-            <button onClick={onLogout}>로그아웃</button>
+                    <span style={{ color: "#2c7" }}>{user.email}</span>
+                    <button onClick={onLogout}>로그아웃</button>
                 </>
             ) : (
                 <>

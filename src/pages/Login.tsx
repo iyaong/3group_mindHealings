@@ -2,15 +2,22 @@
 // 로그인 페이지입니다.
 
 import { useNavigate } from "react-router-dom";
+import { useDisplay } from "../contexts/DisplayContext";
 import { useState } from "react";
 import { useToast } from "../components/Toast";
+
 import "../styles/Login.css";
 
 export default function Login() {
 
     // navigate: 페이지를 이동할 때 사용
     const navigate = useNavigate();
+
+    // 추가 페이지 활성화 설정
+    const { setDisplayContent } = useDisplay();
+
     const { showToast, ToastContainer } = useToast();
+
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [loading, setLoading] = useState(false);
@@ -31,8 +38,15 @@ export default function Login() {
     // back: 뒤로가기 버튼
     const back = () => {
 
-        // 페이지 이동("경로");
-        navigate("/");
+        // 기본 페이지 활성화
+        setDisplayContent("default");
+    }
+
+    // register: 회원가입 버튼
+    const register = () => {
+
+        // 회원가입 페이지 활성화
+        setDisplayContent("register");
     }
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -56,7 +70,7 @@ export default function Login() {
             // 성공 시 네비게이션 상태 갱신 후 홈으로 이동
             showToast({ message: "로그인 성공! 환영합니다! 🎉", type: 'success', duration: 2000 });
             window.dispatchEvent(new Event('auth:changed'));
-            setTimeout(() => navigate("/"), 800);
+            setTimeout(() => setDisplayContent("default"), 800);
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : "네트워크 오류가 발생했습니다.";
             showToast({ message: errorMessage, type: 'error' });
@@ -125,7 +139,7 @@ export default function Login() {
                     </form>
 
                     <div className="login-links">
-                        <a href="/register" className="login-link">회원가입</a>
+                        <a href="#" onClick={register} className="login-link">회원가입</a>
                         <span className="link-divider">|</span>
                         <a href="#" className="login-link">아이디 찾기</a>
                         <span className="link-divider">|</span>
