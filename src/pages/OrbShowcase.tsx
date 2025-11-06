@@ -9,6 +9,7 @@ import EmotionOrbv3 from '../components/EmotionOrbv3';
 import EmotionOrbv4 from '../components/EmotionOrbv4';
 import EmotionOrbv5 from '../components/EmotionOrbv5';
 import SiriOrb from '../components/SiriOrb';
+import Orb from '../components/Orb';
 
 // 감정별 색상 프리셋
 const emotionPresets = [
@@ -33,7 +34,7 @@ const customColors = [
 export default function OrbShowcase() {
   const navigate = useNavigate();
   const [selectedColor, setSelectedColor] = useState('#FFD54F');
-  const [selectedOrb, setSelectedOrb] = useState<'basic' | 'v1' | 'premium' | 'v2' | 'v3' | 'v4' | 'v5' | 'siri'>('v5');
+  const [selectedOrb, setSelectedOrb] = useState<'basic' | 'v1' | 'premium' | 'v2' | 'v3' | 'v4' | 'v5' | 'siri' | 'orb'>('v5');
   const [customColor, setCustomColor] = useState('#FFD54F');
   const [orbSize, setOrbSize] = useState(280);
   const [intensity, setIntensity] = useState(1);
@@ -124,6 +125,7 @@ export default function OrbShowcase() {
               { key: 'v4' as const, label: 'V4 Premium', desc: 'All Features' },
               { key: 'v5' as const, label: 'V5 GSAP', desc: 'Shader + Transmission + HDRI + Post', highlight: true },
               { key: 'siri' as const, label: 'Siri Orb', desc: '애플 스타일 실크 리본', highlight: true },
+              { key: 'orb' as const, label: 'Orb', desc: 'Siri 스타일 실크 리본', highlight: true },
             ].map(({ key, label, desc, highlight }) => (
               <button
                 key={key}
@@ -225,6 +227,11 @@ export default function OrbShowcase() {
               {selectedOrb === 'siri' && (
                 <div style={{ width: '100%', height: '100%' }}>
                   <SiriOrb color={selectedColor} intensity={intensity} />
+                </div>
+              )}
+              {selectedOrb === 'orb' && (
+                <div style={{ width: '100%', height: '100%' }}>
+                  <Orb />
                 </div>
               )}
             </div>
