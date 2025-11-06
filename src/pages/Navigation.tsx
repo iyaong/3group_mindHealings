@@ -103,29 +103,32 @@ export default function Navigation() {
                 >
                     챗온
                 </NavLink>
-                {user && (
-                    <NavLink
-                        to="/profile"
-                        style={({ isActive }) => ({
-                            padding: "6px 10px",
-                            borderRadius: 8,
-                            textDecoration: "none",
-                            border: isActive ? "1px solid #2563eb" : "1px solid transparent",
-                            background: isActive ? "#eef2ff" : "transparent",
-                            color: isActive ? "#1e3a8a" : "#111",
-                            fontWeight: 600,
-                        })}
-                    >
-                        프로필
-                    </NavLink>
-                )}
             </div>
 
             {loading ? (
                 <span>상태 확인 중...</span>
             ) : user ? (
                 <>
-                    <span style={{ color: "#2c7" }}>{user.email}</span>
+                    <span 
+                        onClick={() => navigate('/profile')}
+                        style={{ 
+                            color: "#2563eb", 
+                            cursor: "pointer",
+                            fontWeight: 600,
+                            padding: "6px 10px",
+                            borderRadius: 8,
+                            transition: "background 0.2s",
+                        }}
+                        onMouseEnter={(e) => {
+                            e.currentTarget.style.background = "#eef2ff";
+                        }}
+                        onMouseLeave={(e) => {
+                            e.currentTarget.style.background = "transparent";
+                        }}
+                        title="프로필 페이지로 이동"
+                    >
+                        {user.nickname || user.email}{" 님"}
+                    </span>
                     <button onClick={onLogout}>로그아웃</button>
                 </>
             ) : (

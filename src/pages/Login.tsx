@@ -1,7 +1,6 @@
 // Login.tsx
 // 로그인 페이지입니다.
 
-import { useNavigate } from "react-router-dom";
 import { useDisplay } from "../contexts/DisplayContext";
 import { useState } from "react";
 import { useToast } from "../components/Toast";
@@ -9,9 +8,6 @@ import { useToast } from "../components/Toast";
 import "../styles/Login.css";
 
 export default function Login() {
-
-    // navigate: 페이지를 이동할 때 사용
-    const navigate = useNavigate();
 
     // 추가 페이지 활성화 설정
     const { setDisplayContent } = useDisplay();
