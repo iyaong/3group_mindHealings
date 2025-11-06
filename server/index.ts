@@ -259,9 +259,27 @@ app.post('/api/register', async (req, res) => {
       return res.status(409).json({ message: '이미 사용 중인 이메일입니다.' });
     }
 
+    // 기본 닉네임 생성: 이메일 @ 앞부분 + 랜덤 4자리
+    const emailPrefix = email.split('@')[0];
+    const randomSuffix = Math.floor(1000 + Math.random() * 9000); // 1000~9999
+    const defaultNickname = `${emailPrefix}${randomSuffix}`;
+
     const hash = await bcrypt.hash(password, 10);
-    const result = await users.insertOne({ email, password: hash, createdAt: new Date() });
-    return res.status(201).json({ ok: true, user: { id: String(result.insertedId), email } });
+    const result = await users.insertOne({ 
+      email, 
+      password: hash, 
+      nickname: defaultNickname, // 기본 닉네임 추가
+      createdAt: new Date() 
+    });
+    
+    return res.status(201).json({ 
+      ok: true, 
+      user: { 
+        id: String(result.insertedId), 
+        email,
+        nickname: defaultNickname 
+      } 
+    });
   } catch (err: any) {
     console.error('Register error:', err);
     return res.status(500).json({ message: '서버 오류가 발생했습니다.' });
