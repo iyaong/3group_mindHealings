@@ -4,3 +4,15 @@
     flex-direction: column;
     width: 60vw;
 }
+
+/* --------------------------------------------- 대화 추가 버튼 애니메이션 --------------------------------------------- */
+@keyframes pulse {
+    0%, 100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+    50% {
+        transform: scale(1.02);
+        opacity: 0.95;
+    }
+}

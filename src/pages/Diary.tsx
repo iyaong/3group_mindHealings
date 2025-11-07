@@ -266,6 +266,13 @@ export default function Diary() {
         return Array.from(grouped.entries()).sort((a, b) => b[0].localeCompare(a[0]));
     }, [finalFilteredOnlineSessions]);
 
+    // 오늘 날짜의 AI 대화가 있는지 확인
+    const hasTodayAISession = useMemo(() => {
+        const today = new Date();
+        const todayKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+        return list.some(session => session.date === todayKey);
+    }, [list]);
+
     // 날짜 펼치기/접기 토글
     const toggleDate = (date: string) => {
         setExpandedDates((prev) => {
@@ -1116,7 +1123,7 @@ export default function Diary() {
                                 fontSize: 13,
                             }}
                         >
-                            🤖 AI 대화
+                            🤖 AI 일기장
                         </button>
                         <button
                             onClick={() => setActiveTab('online')}
@@ -1491,27 +1498,36 @@ export default function Diary() {
                                 style={{
                                     width: '100%',
                                     padding: '10px 12px',
-                                    border: '1px solid #2563eb',
+                                    border: hasTodayAISession ? '1px solid #2563eb' : '2px solid #f59e0b',
                                     borderRadius: 10,
-                                    background: 'linear-gradient(135deg, #2563eb 0%, #1e40af 100%)',
+                                    background: hasTodayAISession 
+                                        ? 'linear-gradient(135deg, #2563eb 0%, #1e40af 100%)'
+                                        : 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
                                     color: '#fff',
                                     cursor: 'pointer',
                                     fontSize: 14,
                                     fontWeight: 600,
                                     transition: 'all 0.3s ease',
-                                    boxShadow: '0 2px 4px rgba(37, 99, 235, 0.2)',
+                                    boxShadow: hasTodayAISession 
+                                        ? '0 2px 4px rgba(37, 99, 235, 0.2)'
+                                        : '0 4px 12px rgba(245, 158, 11, 0.5), 0 0 20px rgba(245, 158, 11, 0.3)',
                                     boxSizing: 'border-box',
+                                    animation: hasTodayAISession ? 'none' : 'pulse 2s ease-in-out infinite',
                                 }}
                                 onMouseEnter={(e) => {
-                                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(37, 99, 235, 0.4)';
+                                    e.currentTarget.style.boxShadow = hasTodayAISession
+                                        ? '0 4px 12px rgba(37, 99, 235, 0.4)'
+                                        : '0 6px 16px rgba(245, 158, 11, 0.6), 0 0 25px rgba(245, 158, 11, 0.4)';
                                     e.currentTarget.style.transform = 'translateY(-2px)';
                                 }}
                                 onMouseLeave={(e) => {
-                                    e.currentTarget.style.boxShadow = '0 2px 4px rgba(37, 99, 235, 0.2)';
+                                    e.currentTarget.style.boxShadow = hasTodayAISession
+                                        ? '0 2px 4px rgba(37, 99, 235, 0.2)'
+                                        : '0 4px 12px rgba(245, 158, 11, 0.5), 0 0 20px rgba(245, 158, 11, 0.3)';
                                     e.currentTarget.style.transform = 'translateY(0)';
                                 }}
                             >
-                                ✨ 대화 추가
+                                {hasTodayAISession ? '✨ 일기 추가' : '✨ 오늘의 일기를 시작하세요!'}
                             </button>
                         </div>
                     )}

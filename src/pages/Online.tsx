@@ -840,7 +840,7 @@ export default function Online() {
                 marginBottom: 12,
                 textAlign: 'center'
               }}>
-                💡 채팅창에서 나가면 대화 내역이 사라집니다. 나가기 전 다이어리에 저장할 수 있습니다.
+                💡 채팅창에서 나가면 대화 내역이 사라지고, 다이어리에 저장할지 여부를 결정할 수 있습니다.
               </div>
 
               {/* 채팅창 */}

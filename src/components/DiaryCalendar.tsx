@@ -90,7 +90,7 @@ export default function DiaryCalendar({ sessions, onDateSelect, selectedDate, ac
         }}
       >
         <h3 style={{ fontSize: 14, fontWeight: 700, color: '#fff', margin: 0 }}>
-          {activeTab === 'ai' ? '📅 AI 대화 달력' : '📅 온라인 채팅 달력'}
+          {activeTab === 'ai' ? '📅 달력 펼치기 / 접기' : '📅 온라인 채팅 달력'}
         </h3>
         <span style={{ 
           fontSize: 16, 
