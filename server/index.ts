@@ -1,7 +1,6 @@
 // Load .env from project root explicitly to avoid CWD issues
 import path from 'node:path';
 import fs from 'node:fs';
-import os from 'node:os';
 import dotenv from 'dotenv';
 const envPath = path.resolve(process.cwd(), '.env');
 if (fs.existsSync(envPath)) {
@@ -60,19 +59,6 @@ function loadUserEmotionColorsEarly(): Record<string, string> {
 }
 
 const EMOTION_COLORS_EARLY = loadUserEmotionColorsEarly();
-
-// 네트워크 IP를 가져오는 함수
-function getNetworkIP(): string {
-  const interfaces = os.networkInterfaces();
-  for (const name of Object.keys(interfaces)) {
-    for (const iface of interfaces[name] || []) {
-      if (iface.family === 'IPv4' && !iface.internal) {
-        return iface.address;
-      }
-    }
-  }
-  return 'localhost';
-}
 
 // 감정 색상 목록을 AI 프롬프트용 문자열로 변환
 function getEmotionColorPrompt(): string {
@@ -1062,7 +1048,7 @@ app.get('/api/emotion/insights', authMiddleware, async (req: any, res) => {
 친근하고 따뜻한 톤으로 작성하세요.`;
 
       const completion = await openai.chat.completions.create({
-        model: 'gpt-5-nano',
+        model: OPENAI_MODEL,
         messages: [{ role: 'user', content: prompt }],
         temperature: 0.7,
         max_tokens: 500
@@ -2494,7 +2480,7 @@ ${emotionSummary}
 - 칭호만 답변 (설명 제외)`;
 
     const completion = await openai.chat.completions.create({
-      model: 'gpt-5-nano',
+      model: OPENAI_MODEL,
       messages: [{ role: 'user', content: prompt }],
       temperature: 0.8,
       max_tokens: 50
@@ -2677,7 +2663,7 @@ app.get('/api/user/emotion-recommendations', authMiddleware, async (req: any, re
 실용적이고 바로 실천 가능한 활동을 추천해주세요.`;
 
     const completion = await openai.chat.completions.create({
-      model: 'gpt-5-nano',
+      model: OPENAI_MODEL,
       messages: [{ role: 'user', content: prompt }],
       temperature: 0.8,
       max_tokens: 800
@@ -2835,7 +2821,7 @@ ${tomorrowPattern ? `과거 데이터에 따르면 ${tomorrowPattern.dayName}요
 실용적이고 긍정적인 조언을 제공해주세요.`;
 
     const completion = await openai.chat.completions.create({
-      model: 'gpt-5-nano',
+      model: OPENAI_MODEL,
       messages: [{ role: 'user', content: prompt }],
       temperature: 0.7,
       max_tokens: 500
@@ -3427,12 +3413,12 @@ const httpServer = http.createServer(app);
 // cors를 *로 설정시 모든 도메인에서 접속 가능
 const server = new Server(httpServer, { 
   cors: { 
-    origin: "*",
+    origin: "http://192.168.4.8:5173", // 특정 origin 허용
     methods: ["GET", "POST"],
     credentials: true
   },
   transports: ['websocket', 'polling'], // WebSocket과 polling 모두 지원
-  allowEIO3: true // Engine.IO v3 클라이언트 지원
+  // allowEIO3: true // Engine.IO v3 클라이언트 지원 (Socket.IO v4에서는 기본 지원)
 });
 
 // waitingUser: 현재 매칭을 기다리고 있는 사용자
@@ -3658,7 +3644,7 @@ server.on("connection", (client) => {
 
     // OpenAI에게 메시지에 담긴 감정을 색상으로 변환해 달라고 하기
     const airesponse = await openai.chat.completions.create({
-      model: "gpt-5-nano",
+      model: OPENAI_MODEL,
       messages: [
         {
           role: "system",
@@ -3804,9 +3790,8 @@ async function checkEmotionsOnStartup() {
     
     // 네트워크에서 접근 가능하도록 0.0.0.0으로 바인딩
     httpServer.listen(PORT, '0.0.0.0', () => {
-      const networkIP = getNetworkIP();
       console.log(`✅ API server listening on http://0.0.0.0:${PORT} (db: ${DB_NAME})`);
-      console.log(`🌐 Network access: http://${networkIP}:${PORT}`);
+      console.log(`🌐 Network access: http://192.168.4.8:${PORT}`);
       console.log(`🏠 Local access: http://localhost:${PORT}`);
     });
   } catch (e) {

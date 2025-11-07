@@ -1,3 +1,13 @@
+/* Logged-out styles */
+.home-wrap-loggedout { width: 100%; min-height: calc(100vh - 56px); display: grid; place-items: center; background: linear-gradient(135deg, #f8fafc 0%, #eef2ff 100%); position: relative; }
+.mainview-logout { width: min(720px, 92%); display: flex; flex-direction: column; align-items: center; gap: 20px; padding: 48px 24px; }
+.home-hero .home-title { font-size: 22px; font-weight: 800; color: #111827; }
+.home-hero .home-subtitle { font-size: 16px; color: #4b5563; margin-top: 6px; }
+.home-form { width: 100%; display:flex; justify-content:center }
+.home-input { width: 100%; max-width: 540px; padding: 12px 16px; border-radius: 999px; border: 1px solid #e5e7eb; background: #fff; }
+.orb-showcase-btn { position: fixed; bottom: 30px; right: 30px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; padding: 14px 28px; border-radius: 16px; font-size: 15px; font-weight: 700; cursor:pointer; box-shadow: 0 8px 25px rgba(102,126,234,0.4); z-index: 100; }
+
+/* Logged-in grid */
 #home-loggedin-wrap {width: 100%; background-color: aqua; display: flex; justify-content: center; align-items: center;}
 
 .home-grid{width: 1300px; background-color: bisque;}
@@ -10,12 +20,5 @@
 .sub-content{width: 100%; display: flex; flex-direction: column;}
 .diary-preview{width: 500px;}
 .goals-list{width: 500px;}
-
-
-
-
-
-
-
 
 

@@ -7,7 +7,7 @@ export default defineConfig({
   server: {
     host: '0.0.0.0', // 네트워크에서 접근 가능하도록 설정
     port: 5173,
-    proxy: {
+    proxy: { 
       '/api': {
         target: 'http://localhost:7780', // localhost로 변경 (같은 기기일 때)
         changeOrigin: true,
