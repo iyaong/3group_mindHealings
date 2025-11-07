@@ -14,6 +14,10 @@ const RETRY_DELAY = 1000; // 1초
 async function fetchWithRetry(url: string, options: RequestInit, retries = MAX_RETRIES): Promise<Response> {
   try {
     const response = await fetch(url, options);
+    // 401이나 4xx 에러는 재시도하지 않음 (인증 문제는 재시도해도 소용없음)
+    if (response.status === 401 || (response.status >= 400 && response.status < 500)) {
+      return response;
+    }
     return response;
   } catch (error) {
     if (retries > 0) {
@@ -30,23 +34,27 @@ export function useAuth() {
   const [error, setError] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    
     try {
-      setLoading(true);
-      setError(null);
-      const res = await fetchWithRetry('/api/me', { credentials: 'include' });
+      const res = await fetch('/api/me', { credentials: 'include' });
+      
+      if (res.status === 401) {
+        // 로그아웃 상태 - 정상 케이스
+        setUser(null);
+        return;
+      }
+      
       if (!res.ok) {
-        if (res.status === 401) {
-          // 인증되지 않은 사용자 - 정상 케이스
-          setUser(null);
-          return;
-        }
         throw new Error(`인증 확인 실패: ${res.status}`);
       }
+      
       const data = await res.json();
       setUser(data.user ?? null);
     } catch (err) {
       console.error('Auth refresh error:', err);
-      setError(err instanceof Error ? err.message : '인증 확인 중 오류가 발생했습니다');
+      setError(err instanceof Error ? err.message : '인증 확인 중 오류');
       setUser(null);
     } finally {
       setLoading(false);

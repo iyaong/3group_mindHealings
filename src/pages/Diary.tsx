@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, Component } from 'react';
 import type { ReactNode } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useDisplay } from "../contexts/DisplayContext";
 import { useAuth } from '../hooks/useAuth';
 import SiriOrb from '../components/SiriOrb';
 import ColorCircle from '../components/ColorCircle';
@@ -87,6 +88,10 @@ function highlightText(text: string, query: string) {
 
 export default function Diary() {
     const navigate = useNavigate();
+
+    // 추가 페이지 활성화 설정
+    const { setDisplayContent } = useDisplay();
+
     const location = useLocation();
     const { user, loading } = useAuth();
     const { showToast, ToastContainer } = useToast();
@@ -134,7 +139,7 @@ export default function Diary() {
 
     useEffect(() => {
         if (loading) return;
-        if (!user) navigate('/login');
+        if (!user) setDisplayContent("login");
     }, [loading, user, navigate]);
 
     // Enter 키 전역 리스너: AI 대화 탭에서만 작동, textarea가 포커스되지 않은 상태에서 Enter 누르면 포커스
@@ -1537,77 +1542,6 @@ export default function Diary() {
                 <main className="diary-main" style={{ padding: 16, boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: 12 }}>
                     {activeTab === 'ai' ? (
                         <>
-                            {/* 히스토리 & 목표 버튼 섹션 */}
-                            <div style={{
-                                display: 'flex',
-                                gap: 12,
-                                marginBottom: 4
-                            }}>
-                                <button
-                                    onClick={() => navigate('/history')}
-                                    style={{
-                                        flex: 1,
-                                        padding: '16px 24px',
-                                        border: '2px solid #3b82f6',
-                                        borderRadius: 16,
-                                        background: 'linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%)',
-                                        color: '#1e40af',
-                                        fontSize: 16,
-                                        fontWeight: 700,
-                                        cursor: 'pointer',
-                                        transition: 'all 0.3s ease',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        gap: 10,
-                                        boxShadow: '0 4px 12px rgba(59, 130, 246, 0.2)'
-                                    }}
-                                    onMouseEnter={(e) => {
-                                        e.currentTarget.style.transform = 'translateY(-4px)';
-                                        e.currentTarget.style.boxShadow = '0 8px 20px rgba(59, 130, 246, 0.3)';
-                                    }}
-                                    onMouseLeave={(e) => {
-                                        e.currentTarget.style.transform = 'translateY(0)';
-                                        e.currentTarget.style.boxShadow = '0 4px 12px rgba(59, 130, 246, 0.2)';
-                                    }}
-                                >
-                                    <span style={{ fontSize: 24 }}>📊</span>
-                                    <span>히스토리</span>
-                                </button>
-
-                                <button
-                                    onClick={() => navigate('/goals')}
-                                    style={{
-                                        flex: 1,
-                                        padding: '16px 24px',
-                                        border: '2px solid #8b5cf6',
-                                        borderRadius: 16,
-                                        background: 'linear-gradient(135deg, #ede9fe 0%, #ddd6fe 100%)',
-                                        color: '#6d28d9',
-                                        fontSize: 16,
-                                        fontWeight: 700,
-                                        cursor: 'pointer',
-                                        transition: 'all 0.3s ease',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        gap: 10,
-                                        boxShadow: '0 4px 12px rgba(139, 92, 246, 0.2)'
-                                    }}
-                                    onMouseEnter={(e) => {
-                                        e.currentTarget.style.transform = 'translateY(-4px)';
-                                        e.currentTarget.style.boxShadow = '0 8px 20px rgba(139, 92, 246, 0.3)';
-                                    }}
-                                    onMouseLeave={(e) => {
-                                        e.currentTarget.style.transform = 'translateY(0)';
-                                        e.currentTarget.style.boxShadow = '0 4px 12px rgba(139, 92, 246, 0.2)';
-                                    }}
-                                >
-                                    <span style={{ fontSize: 24 }}>🎯</span>
-                                    <span>목표</span>
-                                </button>
-                            </div>
-
                             {/* AI 대화 탭 - 기존 UI 유지 */}
                             <div style={{ ...bgStyle, border: '1px solid #e5e7eb', borderRadius: 12, minHeight: '70vh', padding: 12, position: 'relative', boxSizing: 'border-box', flex: 1 }}>
                                 {/* 감정 오브: 채팅창 왼쪽 상단 고정, 크게 */}

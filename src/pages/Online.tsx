@@ -3,6 +3,7 @@
 
 import { useRef, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { useDisplay } from "../contexts/DisplayContext";
 import { io, Socket } from "socket.io-client";
 import { useAuth } from '../hooks/useAuth';
 import { useToast } from '../components/Toast';
@@ -41,6 +42,9 @@ export default function Online() {
 
   // navigate: 페이지를 이동할 때 사용
   const navigate = useNavigate();
+
+  // 추가 페이지 활성화 설정
+  const { setDisplayContent } = useDisplay();
 
   // Toast 알림
   const { showToast, ToastContainer } = useToast();
@@ -105,7 +109,7 @@ export default function Online() {
     if (loading) return;
 
     // 로그인 안되있으면 로그인 페이지로 이동
-    if (!user) navigate("/login");
+    if (!user) setDisplayContent("login");
   }, [loading, user, navigate])
 
   // 내 프로필 로드

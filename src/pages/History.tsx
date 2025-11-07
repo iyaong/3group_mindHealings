@@ -1,6 +1,7 @@
 // History.tsx - 감정 히스토리 전용 페이지
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useDisplay } from "../contexts/DisplayContext";
 import { useAuth } from '../hooks/useAuth';
 import EmotionHistoryChart from '../components/EmotionHistoryChart';
 import EmotionInsights from '../components/EmotionInsights';
@@ -12,7 +13,13 @@ import EmotionPrediction from '../components/EmotionPrediction';
 const CACHE_KEY = 'emotion_title_cache';
 
 export default function History() {
+
+  // navigate: 페이지를 이동할 때 사용
   const navigate = useNavigate();
+
+  // 추가 페이지 활성화 설정
+  const { setDisplayContent } = useDisplay();
+
   const { user, loading } = useAuth();
   const [chartDays, setChartDays] = useState(7);
   const [userTitle, setUserTitle] = useState('');
@@ -123,7 +130,7 @@ export default function History() {
           로그인이 필요합니다
         </div>
         <button
-          onClick={() => navigate('/login')}
+          onClick={() => setDisplayContent("login")}
           style={{
             padding: '12px 24px',
             background: '#6366f1',

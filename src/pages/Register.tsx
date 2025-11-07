@@ -1,16 +1,12 @@
 // Register.tsx
 // 회원가입 페이지입니다.
 
-import { useNavigate } from "react-router-dom";
 import { useDisplay } from "../contexts/DisplayContext";
 import { useState } from "react";
 import { useToast } from "../components/Toast";
 import "../styles/Register.css";
 
 export default function Register() {
-
-    // navigate: 페이지를 이동할 때 사용
-    const navigate = useNavigate();
 
     // 추가 페이지 활성화 설정
     const { setDisplayContent } = useDisplay();

@@ -25,8 +25,8 @@ const DB_NAME = process.env.DB_NAME || 'appdb';
 const PORT = Number(process.env.PORT || 7780);
 const JWT_SECRET = process.env.JWT_SECRET || 'dev_secret';
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY || '';
-// 기본 모델: 최신 가용성이 높은 소형 모델로 설정 (필요시 .env로 재정의)
-const OPENAI_MODEL = process.env.OPENAI_MODEL || 'gpt-4.1-nano';
+// 기본 모델
+const OPENAI_MODEL = process.env.OPENAI_MODEL || 'gpt-5-nano';
 
 // emotion_colors.json을 먼저 로드 (chatCompletionWithFallback에서 사용)
 function loadUserEmotionColorsEarly(): Record<string, string> {
@@ -96,9 +96,9 @@ async function chatCompletionWithFallback(openai: OpenAI, messages: Array<{ role
     const msg = e?.message || '';
     const status = e?.status || e?.code;
     const notFound = /model\s?.*does not exist|unknown model|not found/i.test(msg) || status === 404;
-    if (notFound && preferred !== 'gpt-4.1-nano') {
-      // 모델 미존재 시 gpt-4.1-nano로 폴백
-  return await openai.chat.completions.create({ model: 'gpt-4.1-nano', messages: [
+    if (notFound && preferred !== 'gpt-5-nano') {
+      // 모델 미존재 시 gpt-5-nano로 폴백
+  return await openai.chat.completions.create({ model: 'gpt-5-nano', messages: [
         ...messages.map((m: any) => ({ role: m.role, content: String(m.content) })),
         {
           role: 'system',
@@ -1048,7 +1048,7 @@ app.get('/api/emotion/insights', authMiddleware, async (req: any, res) => {
 친근하고 따뜻한 톤으로 작성하세요.`;
 
       const completion = await openai.chat.completions.create({
-        model: 'gpt-4o-mini',
+        model: 'gpt-5-nano',
         messages: [{ role: 'user', content: prompt }],
         temperature: 0.7,
         max_tokens: 500
@@ -2480,7 +2480,7 @@ ${emotionSummary}
 - 칭호만 답변 (설명 제외)`;
 
     const completion = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
+      model: 'gpt-5-nano',
       messages: [{ role: 'user', content: prompt }],
       temperature: 0.8,
       max_tokens: 50
@@ -2663,7 +2663,7 @@ app.get('/api/user/emotion-recommendations', authMiddleware, async (req: any, re
 실용적이고 바로 실천 가능한 활동을 추천해주세요.`;
 
     const completion = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
+      model: 'gpt-5-nano',
       messages: [{ role: 'user', content: prompt }],
       temperature: 0.8,
       max_tokens: 800
@@ -2821,7 +2821,7 @@ ${tomorrowPattern ? `과거 데이터에 따르면 ${tomorrowPattern.dayName}요
 실용적이고 긍정적인 조언을 제공해주세요.`;
 
     const completion = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
+      model: 'gpt-5-nano',
       messages: [{ role: 'user', content: prompt }],
       temperature: 0.7,
       max_tokens: 500
@@ -3644,7 +3644,7 @@ server.on("connection", (client) => {
 
     // OpenAI에게 메시지에 담긴 감정을 색상으로 변환해 달라고 하기
     const airesponse = await openai.chat.completions.create({
-      model: "gpt-4.1-nano",
+      model: "gpt-5-nano",
       messages: [
         {
           role: "system",
