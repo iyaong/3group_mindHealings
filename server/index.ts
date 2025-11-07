@@ -1,6 +1,7 @@
 // Load .env from project root explicitly to avoid CWD issues
 import path from 'node:path';
 import fs from 'node:fs';
+import os from 'node:os';
 import dotenv from 'dotenv';
 const envPath = path.resolve(process.cwd(), '.env');
 if (fs.existsSync(envPath)) {
@@ -59,6 +60,19 @@ function loadUserEmotionColorsEarly(): Record<string, string> {
 }
 
 const EMOTION_COLORS_EARLY = loadUserEmotionColorsEarly();
+
+// 네트워크 IP를 가져오는 함수
+function getNetworkIP(): string {
+  const interfaces = os.networkInterfaces();
+  for (const name of Object.keys(interfaces)) {
+    for (const iface of interfaces[name] || []) {
+      if (iface.family === 'IPv4' && !iface.internal) {
+        return iface.address;
+      }
+    }
+  }
+  return 'localhost';
+}
 
 // 감정 색상 목록을 AI 프롬프트용 문자열로 변환
 function getEmotionColorPrompt(): string {
@@ -3410,10 +3424,22 @@ import http from "http";
 const httpServer = http.createServer(app);
 
 // socket.io 서버 생성
-// cors를 *로 설정시 모든 도메인에서 접속 가능
+// cors를 동적으로 설정하여 현재 네트워크 IP 허용
 const server = new Server(httpServer, { 
   cors: { 
-    origin: "http://192.168.4.8:5173", // 특정 origin 허용
+    origin: (requestOrigin, callback) => {
+      const networkIP = getNetworkIP();
+      const allowedOrigins = [
+        `http://localhost:5173`,
+        `http://127.0.0.1:5173`, 
+        `http://${networkIP}:5173`
+      ];
+      if (!requestOrigin || allowedOrigins.includes(requestOrigin)) {
+        callback(null, requestOrigin || allowedOrigins[0]);
+      } else {
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
     methods: ["GET", "POST"],
     credentials: true
   },
@@ -3790,8 +3816,9 @@ async function checkEmotionsOnStartup() {
     
     // 네트워크에서 접근 가능하도록 0.0.0.0으로 바인딩
     httpServer.listen(PORT, '0.0.0.0', () => {
+      const networkIP = getNetworkIP();
       console.log(`✅ API server listening on http://0.0.0.0:${PORT} (db: ${DB_NAME})`);
-      console.log(`🌐 Network access: http://192.168.4.8:${PORT}`);
+      console.log(`🌐 Network access: http://${networkIP}:${PORT}`);
       console.log(`🏠 Local access: http://localhost:${PORT}`);
     });
   } catch (e) {
