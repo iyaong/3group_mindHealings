@@ -1,6 +1,7 @@
 // MatchingSuggestionModal.tsx - 감정 진단 완료 후 매칭 시스템 권유 모달
 import { useNavigate } from 'react-router-dom';
 import { getEmotionColorConfig } from '../utils/emotionColorUtils';
+import { getEmotionColorName } from '../utils/emotionColorNames';
 import './MatchingSuggestionModal.css';
 
 interface MatchingSuggestionModalProps {
@@ -13,13 +14,24 @@ interface MatchingSuggestionModalProps {
 export default function MatchingSuggestionModal({ emotion, color, colorName, onClose }: MatchingSuggestionModalProps) {
   const navigate = useNavigate();
   
+  // 디버깅: prop으로 받은 값 확인
+  console.log('🔍 [Modal] emotion:', emotion);
+  console.log('🔍 [Modal] color:', color);
+  console.log('🔍 [Modal] colorName (from server):', colorName);
+  
   // 감정 색상 설정 가져오기
   const colorConfig = getEmotionColorConfig(emotion);
   
-  // colorName이 제공되면 서버의 색상 이름 사용, 아니면 기본 색상 이름 사용
-  const displayColorName = colorName || colorConfig.colorName;
+  // 우선순위: 서버 colorName > emotion 기반 colorName > 기본 colorName
+  const emotionBasedColorName = getEmotionColorName(emotion);
+  const displayColorName = colorName || emotionBasedColorName || colorConfig.colorName;
+  
   // 실제 색상은 서버에서 제공한 color 사용
   const displayColor = color || colorConfig.background;
+  
+  console.log('🔍 [Modal] emotionBasedColorName:', emotionBasedColorName);
+  console.log('🔍 [Modal] displayColorName (final):', displayColorName);
+  console.log('🔍 [Modal] colorConfig.colorName (fallback):', colorConfig.colorName);
 
   const handleGoToMatching = () => {
     onClose();

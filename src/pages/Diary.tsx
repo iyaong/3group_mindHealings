@@ -891,7 +891,7 @@ export default function Diary() {
 
             const data = await res.json();
             if (import.meta.env.DEV) {
-                console.log('🎨 Analyze:', data?.mood);
+                console.log('🎨 Analyze Response:', { mood: data?.mood });
             }
             setMood(data?.mood ?? null);
 
@@ -1716,7 +1716,7 @@ export default function Diary() {
                                 <div className="feedback-section" style={{
                                     position: 'relative',
                                     width: '100%',
-                                    paddingTop: '10px',
+                                    paddingTop: '0px',
                                     marginBottom: 0,
                                     display: 'flex',
                                     alignItems: 'flex-start',
@@ -1728,7 +1728,7 @@ export default function Diary() {
                                         position: 'relative',
                                         display: 'flex',
                                         flexDirection: 'row',
-                                        alignItems: 'flex-start',
+                                        alignItems: 'center',
                                         gap: 16,
                                         flexShrink: 0,
                                         width: '100%',
