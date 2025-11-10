@@ -21,6 +21,7 @@ nav.main {
 nav:not(.main) {
     position: static;
     background-color: white;
+    border-bottom: 1px solid #e5e7eb;
 }
 
 .nav-center {

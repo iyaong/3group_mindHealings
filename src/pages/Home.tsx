@@ -6,6 +6,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import StreakWidget from "../components/StreakWidget";
 import HomeFeatures from "../components/HomeFeatures";
+import PastelLightBackground from "../components/PastelLightBackground";
 import './Home.css';
 
 export default function Home() {
@@ -22,6 +23,9 @@ export default function Home() {
     return (
         <>
             <div id="homeWrap" className="home-wrap-loggedout">
+                {/* Pastel Light 배경 효과 */}
+                <PastelLightBackground />
+                
                 <div className="mainview-logout">
                     <div style={{ width: '100%', maxWidth: 540 }}>
                         <StreakWidget />
