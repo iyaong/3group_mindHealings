@@ -4,6 +4,8 @@ import { useNavigate } from 'react-router-dom';
 import { useDisplay } from "../contexts/DisplayContext";
 import { useAuth } from '../hooks/useAuth';
 import LoadingSpinner from '../components/LoadingSpinner';
+import { InlineError } from '../components/ErrorFallback';
+import { getErrorMessage, logError } from '../utils/errorUtils';
 import EmotionHistoryChart from '../components/EmotionHistoryChart';
 import EmotionInsights from '../components/EmotionInsights';
 import EmotionTitle from '../components/EmotionTitle';
@@ -25,6 +27,7 @@ export default function History() {
   const [chartDays, setChartDays] = useState(7);
   const [userTitle, setUserTitle] = useState('');
   const [nickname, setNickname] = useState('');
+  const [nicknameError, setNicknameError] = useState<string | null>(null);
 
   // 캐시된 칭호 로드 및 실시간 업데이트
   useEffect(() => {
@@ -35,7 +38,7 @@ export default function History() {
           const { title } = JSON.parse(cached);
           setUserTitle(title);
         } catch (e) {
-          // 캐시 파싱 오류 시 무시
+          logError('loadTitle', e);
         }
       }
     };
@@ -72,15 +75,19 @@ export default function History() {
   useEffect(() => {
     const loadNickname = async () => {
       try {
+        setNicknameError(null);
         const res = await fetch('/api/me', { credentials: 'include' });
         if (res.ok) {
           const data = await res.json();
           if (data.user?.nickname) {
             setNickname(data.user.nickname);
           }
+        } else {
+          throw new Error(`HTTP ${res.status}`);
         }
       } catch (e) {
-        console.error('Failed to load nickname:', e);
+        logError('loadNickname', e);
+        setNicknameError(getErrorMessage(e));
       }
     };
 
@@ -183,23 +190,33 @@ export default function History() {
               alignItems: 'center',
               gap: 8
             }}>
-              {userTitle && (
-                <span
-                  style={{
-                    display: 'inline-block',
-                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                    color: '#fff',
-                    padding: '4px 12px',
-                    borderRadius: '20px',
-                    fontSize: '14px',
-                    fontWeight: '600',
-                    boxShadow: '0 2px 8px rgba(102, 126, 234, 0.3)',
-                  }}
-                >
-                  🏆 {userTitle}
-                </span>
+              {nicknameError ? (
+                <InlineError 
+                  message={nicknameError} 
+                  onRetry={() => window.location.reload()} 
+                  showIcon={true}
+                />
+              ) : (
+                <>
+                  {userTitle && (
+                    <span
+                      style={{
+                        display: 'inline-block',
+                        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                        color: '#fff',
+                        padding: '4px 12px',
+                        borderRadius: '20px',
+                        fontSize: '14px',
+                        fontWeight: '600',
+                        boxShadow: '0 2px 8px rgba(102, 126, 234, 0.3)',
+                      }}
+                    >
+                      🏆 {userTitle}
+                    </span>
+                  )}
+                  <span>{nickname || user.email}님의 감정 변화를 시각적으로 확인하세요</span>
+                </>
               )}
-              <span>{nickname || user.email}님의 감정 변화를 시각적으로 확인하세요</span>
             </p>
           </div>
           

@@ -2,6 +2,7 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { DisplayProvider, useDisplay } from './contexts/DisplayContext';
 import { useAuth } from './hooks/useAuth';
+import ErrorBoundary from './components/ErrorBoundary';
 
 import Navigation from './pages/Navigation';
 import Home from './pages/Home';
@@ -24,9 +25,11 @@ import './styles/responsive.css'; // 모바일 반응형 스타일
 export default function App() {
 
   return (
-    <DisplayProvider>
-      <AppMap />
-    </DisplayProvider>
+    <ErrorBoundary>
+      <DisplayProvider>
+        <AppMap />
+      </DisplayProvider>
+    </ErrorBoundary>
   )
 }
 
@@ -65,17 +68,19 @@ function AppMap() {
       {displayContent == "login" && <Login />}
       {displayContent == "register" && <Register />}
       <div style={{display: displayContent == "default" ? "block" : "none"}}>
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/diary" element={<Diary />} />
-          <Route path="/chat" element={<Chat />} />
-          <Route path="/online" element={<Online />} />
-          <Route path="/support" element={<Support />} />
-          <Route path="/profile" element={<Profile />} />
-          <Route path="/orb-showcase" element={<OrbShowcase />} />
-          <Route path="/history" element={<History />} />
-          <Route path="/goals" element={<Goals />} />
-        </Routes>
+        <ErrorBoundary>
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/diary" element={<Diary />} />
+            <Route path="/chat" element={<Chat />} />
+            <Route path="/online" element={<Online />} />
+            <Route path="/support" element={<Support />} />
+            <Route path="/profile" element={<Profile />} />
+            <Route path="/orb-showcase" element={<OrbShowcase />} />
+            <Route path="/history" element={<History />} />
+            <Route path="/goals" element={<Goals />} />
+          </Routes>
+        </ErrorBoundary>
       </div>
 
       {/* 온보딩 오버레이 */}
