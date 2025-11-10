@@ -10,6 +10,7 @@ import { useToast } from '../components/Toast';
 import { ChatLoadingSkeleton, DiaryListSkeleton } from '../components/Skeleton';
 import DiaryCalendar from '../components/DiaryCalendar';
 import StreakWidget from '../components/StreakWidget';
+import MatchingSuggestionModal from '../components/MatchingSuggestionModal';
 import { getColorName } from '../utils/colorUtils';
 import type { DiarySessionResponse, DiaryMessageResponse, DiarySessionsApiResponse, DiarySessionDetailApiResponse } from '../types/api';
 import "./Diary.css";
@@ -2388,6 +2389,15 @@ export default function Diary() {
                     )}
                 </main>
             </div>
+
+            {/* 매칭 시스템 권유 모달 */}
+            {showMatchingSuggestion && mood && (
+                <MatchingSuggestionModal
+                    emotion={mood.emotion}
+                    color={mood.color}
+                    onClose={() => setShowMatchingSuggestion(false)}
+                />
+            )}
         </>
     );
 }
