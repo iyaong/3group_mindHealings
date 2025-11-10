@@ -38,16 +38,20 @@ export default function EmotionTitle() {
     const cached = localStorage.getItem(CACHE_KEY);
     if (cached) {
       try {
-        const { title: cachedTitle, timestamp } = JSON.parse(cached);
+        const { title: cachedTitle, color: cachedColor, timestamp } = JSON.parse(cached);
         const isExpired = Date.now() - timestamp > CACHE_DURATION;
         
         if (!isExpired) {
           setTitle(cachedTitle);
           previousTitleRef.current = cachedTitle; // 초기 칭호 저장
-          setLoading(false);
           
-          // 칭호가 있을 때도 색상을 로드해야 함 (캐시에 색상 정보 없음)
-          fetchEmotionTitle();
+          // 캐시된 색상이 있으면 사용
+          if (cachedColor) {
+            setEmotionColor(cachedColor);
+          }
+          
+          setLoading(false);
+          // 캐시가 유효하면 API 호출하지 않음
           return;
         }
       } catch (e) {
@@ -92,9 +96,10 @@ export default function EmotionTitle() {
           previousTitleRef.current = newTitle;
           setTitle(newTitle);
           
-          // 캐시 저장
+          // 캐시 저장 (색상 정보도 포함)
           localStorage.setItem(CACHE_KEY, JSON.stringify({
             title: newTitle,
+            color: data.color || emotionColor,
             timestamp: Date.now()
           }));
 

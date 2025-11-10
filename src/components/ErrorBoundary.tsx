@@ -1,7 +1,7 @@
 // ErrorBoundary.tsx - React 에러 경계 컴포넌트
 import { Component } from 'react';
 import type { ReactNode } from 'react';
-import ErrorFallback from './ErrorFallback';
+import ErrorFallback from './ErrorFallback.tsx';
 
 interface ErrorBoundaryProps {
   children: ReactNode;
