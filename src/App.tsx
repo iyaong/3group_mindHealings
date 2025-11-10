@@ -1,5 +1,7 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { useState, useEffect } from 'react';
 import { DisplayProvider, useDisplay } from './contexts/DisplayContext';
+import { useAuth } from './hooks/useAuth';
 
 import Navigation from './pages/Navigation';
 import Home from './pages/Home';
@@ -13,6 +15,7 @@ import History from './pages/History';
 import Goals from './components/Goals';
 import Profile from './pages/Profile';
 import Support from './pages/Support';
+import Onboarding from './components/Onboarding';
 
 import './styles/theme.css'; // 디자인 시스템 테마
 import './App.css';
@@ -30,6 +33,31 @@ export default function App() {
 function AppMap() {
 
   const { displayContent } = useDisplay();
+  const { user } = useAuth();
+  const [showOnboarding, setShowOnboarding] = useState(false);
+
+  // 온보딩 상태 확인 (로그인 후 & 처음 사용자)
+  useEffect(() => {
+    if (user) {
+      const hasCompletedOnboarding = localStorage.getItem('onboarding_completed');
+      if (!hasCompletedOnboarding) {
+        // 로그인 직후 약간의 딜레이를 주고 온보딩 표시
+        setTimeout(() => {
+          setShowOnboarding(true);
+        }, 500);
+      }
+    }
+  }, [user]);
+
+  const handleOnboardingComplete = () => {
+    localStorage.setItem('onboarding_completed', 'true');
+    setShowOnboarding(false);
+  };
+
+  const handleOnboardingSkip = () => {
+    localStorage.setItem('onboarding_completed', 'true');
+    setShowOnboarding(false);
+  };
 
   return (
     <Router>
@@ -49,6 +77,14 @@ function AppMap() {
           <Route path="/goals" element={<Goals />} />
         </Routes>
       </div>
+
+      {/* 온보딩 오버레이 */}
+      {showOnboarding && (
+        <Onboarding 
+          onComplete={handleOnboardingComplete}
+          onSkip={handleOnboardingSkip}
+        />
+      )}
     </Router>
   )
 

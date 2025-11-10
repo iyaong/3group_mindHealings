@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import ProfileCard from '../components/ProfileCard';
+import { InlineSpinner } from '../components/LoadingSpinner';
 import type { UserProfile } from '../types/api';
 import './Profile.css';
 
@@ -390,7 +391,14 @@ const Profile: React.FC = () => {
               cursor: changingPassword ? 'not-allowed' : 'pointer',
             }}
           >
-            {changingPassword ? '변경 중...' : '비밀번호 변경'}
+            {changingPassword ? (
+              <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                <InlineSpinner size={16} color="#fff" />
+                변경 중...
+              </span>
+            ) : (
+              '비밀번호 변경'
+            )}
           </button>
         </div>
 
@@ -411,7 +419,14 @@ const Profile: React.FC = () => {
             marginTop: '20px',
           }}
         >
-          {isSaving ? '저장 중...' : '프로필 저장'}
+          {isSaving ? (
+            <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+              <InlineSpinner size={18} color="#fff" />
+              저장 중...
+            </span>
+          ) : (
+            '프로필 저장'
+          )}
         </button>
       </div>
 
@@ -431,6 +446,38 @@ const Profile: React.FC = () => {
           <li><strong>소개:</strong> 자기만 볼 수 있는 비공개 메모입니다.</li>
           <li><strong>비밀번호 변경:</strong> 현재 비밀번호를 입력 후 새 비밀번호를 설정할 수 있습니다.</li>
         </ul>
+
+        {/* 온보딩 다시 보기 버튼 */}
+        <button
+          onClick={() => {
+            localStorage.removeItem('onboarding_completed');
+            alert('페이지를 새로고침하면 온보딩 가이드가 다시 표시됩니다. 🎉');
+            window.location.reload();
+          }}
+          style={{
+            marginTop: '20px',
+            padding: '10px 20px',
+            fontSize: '15px',
+            backgroundColor: '#667eea',
+            color: 'white',
+            border: 'none',
+            borderRadius: '8px',
+            cursor: 'pointer',
+            fontWeight: 600,
+            transition: 'all 0.2s',
+            width: '100%'
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = '#5568d3';
+            e.currentTarget.style.transform = 'translateY(-1px)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = '#667eea';
+            e.currentTarget.style.transform = 'translateY(0)';
+          }}
+        >
+          🎓 온보딩 가이드 다시 보기
+        </button>
       </div>
     </div>
   );

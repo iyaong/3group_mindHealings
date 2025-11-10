@@ -1,0 +1,275 @@
+/* Onboarding.css - 온보딩 투어 스타일 */
+
+/* 오버레이 */
+.onboarding-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: 20px;
+  animation: fadeIn 0.3s ease-out;
+}
+
+/* 컨테이너 */
+.onboarding-container {
+  background: white;
+  border-radius: 24px;
+  max-width: 600px;
+  width: 100%;
+  padding: 48px 40px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  position: relative;
+  animation: slideUp 0.4s ease-out;
+}
+
+/* 스킵 버튼 */
+.onboarding-skip {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  background: transparent;
+  border: none;
+  color: #9ca3af;
+  font-size: 14px;
+  cursor: pointer;
+  padding: 8px 12px;
+  border-radius: 8px;
+  transition: all 0.2s;
+}
+
+.onboarding-skip:hover {
+  background: #f3f4f6;
+  color: #6b7280;
+}
+
+/* 진행 표시 */
+.onboarding-progress {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  margin-bottom: 32px;
+}
+
+.progress-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #e5e7eb;
+  transition: all 0.3s;
+}
+
+.progress-dot.active {
+  width: 40px;
+  border-radius: 6px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.progress-dot.completed {
+  background: #667eea;
+}
+
+/* 콘텐츠 */
+.onboarding-content {
+  text-align: center;
+  margin-bottom: 40px;
+}
+
+.onboarding-emoji {
+  font-size: 80px;
+  margin-bottom: 24px;
+  animation: bounce 1s ease-in-out infinite;
+}
+
+.onboarding-title {
+  font-size: 28px;
+  font-weight: 700;
+  color: #1f2937;
+  margin-bottom: 12px;
+  line-height: 1.3;
+}
+
+.onboarding-description {
+  font-size: 16px;
+  color: #6b7280;
+  margin-bottom: 32px;
+  line-height: 1.6;
+}
+
+/* 기능 목록 */
+.onboarding-features {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  text-align: left;
+  max-width: 400px;
+  margin: 0 auto;
+}
+
+.feature-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: #f9fafb;
+  border-radius: 12px;
+  transition: all 0.2s;
+}
+
+.feature-item:hover {
+  background: #f3f4f6;
+  transform: translateX(4px);
+}
+
+.feature-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  font-size: 14px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.feature-text {
+  font-size: 15px;
+  color: #374151;
+  font-weight: 500;
+}
+
+/* 액션 버튼들 */
+.onboarding-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+
+.onboarding-btn {
+  padding: 14px 32px;
+  font-size: 16px;
+  font-weight: 600;
+  border-radius: 12px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s;
+  min-width: 120px;
+}
+
+.onboarding-btn.btn-primary {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+.onboarding-btn.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+}
+
+.onboarding-btn.btn-primary:active {
+  transform: translateY(0);
+}
+
+.onboarding-btn.btn-secondary {
+  background: #f3f4f6;
+  color: #6b7280;
+}
+
+.onboarding-btn.btn-secondary:hover {
+  background: #e5e7eb;
+  color: #374151;
+}
+
+/* 애니메이션 */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(40px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes bounce {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+/* 반응형 */
+@media (max-width: 640px) {
+  .onboarding-container {
+    padding: 32px 24px;
+    border-radius: 16px;
+  }
+
+  .onboarding-emoji {
+    font-size: 64px;
+    margin-bottom: 20px;
+  }
+
+  .onboarding-title {
+    font-size: 24px;
+  }
+
+  .onboarding-description {
+    font-size: 15px;
+  }
+
+  .feature-text {
+    font-size: 14px;
+  }
+
+  .onboarding-actions {
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .onboarding-btn {
+    width: 100%;
+  }
+}
+
+/* 접근성 */
+@media (prefers-reduced-motion: reduce) {
+  .onboarding-overlay,
+  .onboarding-container,
+  .progress-dot,
+  .feature-item,
+  .onboarding-btn {
+    animation: none !important;
+    transition: none !important;
+  }
+
+  .onboarding-emoji {
+    animation: none !important;
+  }
+}

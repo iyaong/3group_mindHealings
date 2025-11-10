@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDisplay } from "../contexts/DisplayContext";
 import { useAuth } from '../hooks/useAuth';
+import LoadingSpinner from '../components/LoadingSpinner';
 import EmotionHistoryChart from '../components/EmotionHistoryChart';
 import EmotionInsights from '../components/EmotionInsights';
 import EmotionTitle from '../components/EmotionTitle';
@@ -102,17 +103,7 @@ export default function History() {
 
   // 인증 확인
   if (loading) {
-    return (
-      <div style={{ 
-        display: 'flex', 
-        alignItems: 'center', 
-        justifyContent: 'center', 
-        height: '100vh',
-        color: '#9ca3af'
-      }}>
-        로딩 중...
-      </div>
-    );
+    return <LoadingSpinner fullscreen message="감정 히스토리 불러오는 중..." />;
   }
 
   if (!user) {
