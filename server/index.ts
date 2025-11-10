@@ -62,6 +62,27 @@ function loadUserEmotionColorsEarly(): Record<string, string> {
 
 const EMOTION_COLORS_EARLY = loadUserEmotionColorsEarly();
 
+// emotion_color_names.json 로드 (감정별 색상 이름)
+function loadEmotionColorNames(): Record<string, string> {
+  const candidates = [
+    path.resolve(process.cwd(), 'server/emotion_color_names.json'),
+    path.resolve(process.cwd(), 'emotion_color_names.json'),
+  ];
+  for (const p of candidates) {
+    try {
+      if (fs.existsSync(p)) {
+        const raw = fs.readFileSync(p, 'utf-8');
+        return JSON.parse(raw);
+      }
+    } catch {
+      // ignore parse errors and try next location
+    }
+  }
+  return {};
+}
+
+const EMOTION_COLOR_NAMES = loadEmotionColorNames();
+
 // 네트워크 IP를 가져오는 함수
 function getNetworkIP(): string {
   const interfaces = os.networkInterfaces();
@@ -1789,7 +1810,7 @@ type DiaryDoc = {
   userId: string;
   date: string; // YYYY-MM-DD
   title?: string;
-  mood?: { emotion: string; score: number; color: string } | null;
+  mood?: { emotion: string; score: number; color: string; colorName: string } | null;
   lastUpdatedAt: Date;
 };
 
@@ -1964,7 +1985,7 @@ async function personalizedColorForEmotion(db: any, userId: string, baseColor: s
   }catch{ return baseColor; }
 }
 
-async function detectEmotionFromText(text: string): Promise<{ emotion: string; score: number; color: string }> {
+async function detectEmotionFromText(text: string): Promise<{ emotion: string; score: number; color: string; colorName: string }> {
   // emotion_colors.json의 감정 키 목록 생성
   const emotionKeys = Object.keys(EMOTION_COLORS);
   const emotionList = emotionKeys.join(', ');
@@ -2022,12 +2043,15 @@ ${emotionList}
     
     const score = Math.max(0, Math.min(100, Number(parsed.score) || 0));
     const color = EMOTION_COLORS[emotion] || EMOTION_COLORS[defaultEmotion] || '#A8E6CF';
+    const colorName = EMOTION_COLOR_NAMES[emotion] || '부드러운 노랑';
     
-    console.log('✅ 최종 감정 분석:', { emotion, score, color });
-    return { emotion, score, color };
+    console.log('✅ 최종 감정 분석:', { emotion, score, color, colorName });
+    return { emotion, score, color, colorName };
   } catch (e) {
     console.error('❌ 감정 분석 오류:', e);
-    return { emotion: defaultEmotion, score: 0, color: EMOTION_COLORS[defaultEmotion] || '#A8E6CF' };
+    const defaultColor = EMOTION_COLORS[defaultEmotion] || '#A8E6CF';
+    const defaultColorName = EMOTION_COLOR_NAMES[defaultEmotion] || '부드러운 노랑';
+    return { emotion: defaultEmotion, score: 0, color: defaultColor, colorName: defaultColorName };
   }
 }
 
@@ -2375,7 +2399,7 @@ type DiarySession = {
   date: string; // YYYY-MM-DD
   title?: string;
   type?: 'ai' | 'online'; // 세션 타입: AI 대화 또는 온라인 채팅
-  mood?: { emotion: string; score: number; color: string } | null;
+  mood?: { emotion: string; score: number; color: string; colorName: string } | null;
   createdAt: Date;
   lastUpdatedAt: Date;
 };

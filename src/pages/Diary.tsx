@@ -111,7 +111,7 @@ export default function Diary() {
     const [aiChatMessages, setAiChatMessages] = useState<DiaryMessage[]>([]); // 온라인 채팅 탭의 AI와의 대화
     const [currentSessionType, setCurrentSessionType] = useState<'ai' | 'online' | null>(null); // 현재 선택된 세션의 타입
     // 제목 기능 제거: 더 이상 사용하지 않음
-    const [mood, setMood] = useState<{ emotion: string; score: number; color: string } | null>(null);
+    const [mood, setMood] = useState<{ emotion: string; score: number; color: string; colorName: string } | null>(null);
     const [messageCount, setMessageCount] = useState<number>(0); // 현재 메시지 개수
     const MIN_REQUIRED_MESSAGES = 5; // 최소 요구 메시지 수 (상수)
 
@@ -2395,6 +2395,7 @@ export default function Diary() {
                 <MatchingSuggestionModal
                     emotion={mood.emotion}
                     color={mood.color}
+                    colorName={mood.colorName}
                     onClose={() => setShowMatchingSuggestion(false)}
                 />
             )}

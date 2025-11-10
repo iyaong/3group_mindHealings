@@ -6,14 +6,20 @@ import './MatchingSuggestionModal.css';
 interface MatchingSuggestionModalProps {
   emotion: string;
   color: string;
+  colorName?: string; // 서버에서 제공하는 색상 이름 (선택적)
   onClose: () => void;
 }
 
-export default function MatchingSuggestionModal({ emotion, color, onClose }: MatchingSuggestionModalProps) {
+export default function MatchingSuggestionModal({ emotion, color, colorName, onClose }: MatchingSuggestionModalProps) {
   const navigate = useNavigate();
   
   // 감정 색상 설정 가져오기
   const colorConfig = getEmotionColorConfig(emotion);
+  
+  // colorName이 제공되면 서버의 색상 이름 사용, 아니면 기본 색상 이름 사용
+  const displayColorName = colorName || colorConfig.colorName;
+  // 실제 색상은 서버에서 제공한 color 사용
+  const displayColor = color || colorConfig.background;
 
   const handleGoToMatching = () => {
     onClose();
@@ -45,11 +51,11 @@ export default function MatchingSuggestionModal({ emotion, color, onClose }: Mat
           <div 
             className="matching-modal-color-badge" 
             style={{ 
-              backgroundColor: colorConfig.background,
+              backgroundColor: displayColor,
               color: colorConfig.text
             }}
           >
-            {colorConfig.colorName}
+            {displayColorName}
           </div>
           <button className="matching-modal-close" onClick={handleStayInDiary}>
             ✕

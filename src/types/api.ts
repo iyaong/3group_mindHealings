@@ -22,7 +22,7 @@ export interface DiarySessionResponse {
   date: string;
   title?: string;
   type?: 'ai' | 'online'; // 세션 타입
-  mood?: { emotion: string; score: number; color: string } | null;
+  mood?: { emotion: string; score: number; color: string; colorName: string } | null;
   enhancedMood?: EnhancedMood;     // 확장 감정 분석 결과
   originalMessageCount?: number; // 온라인 채팅의 원본 메시지 개수
   summary?: string; // 대화 요약
