@@ -50,20 +50,11 @@ export default function Online() {
   const { showToast, ToastContainer } = useToast();
 
   // -------------------------------------- UI 상태 --------------------------------------
-  // <1> 챗온 메인 페이지 활성화 상태 - 기본값: true
-  const [displayMain, setDisplayMain] = useState(true);
+  // display: /online에서 활성화 할 페이지 - (main(초기 페이지), color, matching, matched, chat)
+  const [display, setDisplay] = useState("main");
 
-  // <2> 챗온 매칭 중 페이지 활성화 상태 - 기본값: false
-  const [displayMatching, setDisplayMatching] = useState(false);
-
-  // <2> 챗온 매칭 중 안내 메시지
+  // matchingMessage: 챗온 매칭 중 안내 메시지
   const [matchingMessage, setMatchingMessage] = useState("당신의 마음을 읽어줄 사람을 찾는중...");
-
-  // <3> 챗온 매칭 완료 페이지 활성화 상태 - 기본값: false
-  const [displayMatched, setDisplayMatched] = useState(false);
-
-  // <4> 챗온 채팅 페이지 활성화 상태 - 기본값: false
-  const [displayChat, setDisplayChat] = useState(false);
 
   // -------------------------------------- 채팅 상태 --------------------------------------
   // messages: 채팅 메시지 목록
@@ -201,6 +192,14 @@ export default function Online() {
     };
   }, [socket]);
 
+  // ------------------------------------- 색상 추천 받기 -------------------------------------
+  function displayColor() {
+
+    // <1> 색상 선택 페이지 활성화
+    setDisplay("color");
+
+  }
+
   // ------------------------------------- 대화 상대 찾는 중 -------------------------------------
   // startMatching: 대화 상대 찾는 중...
   function startMatching() {
@@ -212,10 +211,7 @@ export default function Online() {
     });
 
     // <2> 챗온 매칭 중 페이지 활성화
-    setDisplayMatching(true);
-
-    // <1> 챗온 메인 페이지 비활성화
-    setDisplayMain(false);
+    setDisplay("matching");
 
     // <2> 챗온 채팅 중 안내 메시지 변경
     setMatchingMessage("당신의 마음을 읽어줄 사람을 찾는중...");
@@ -388,11 +384,8 @@ export default function Online() {
       socket.current.emit('cancelMatch');
     }
 
-    // UI 상태 초기화 (메인 페이지로 돌아가기)
-    setDisplayChat(false);
-    setDisplayMatched(false);
-    setDisplayMatching(false);
-    setDisplayMain(true);
+    // UI 상태 초기화 (<1> 메인 페이지로 돌아가기)
+    setDisplay("main");
 
     showToast({ message: '채팅방에서 나갔습니다.', type: 'info' });
   };
@@ -525,22 +518,16 @@ export default function Online() {
       // # 2초 후 ----------------------
       setTimeout(() => {
 
-        // <2> 챗온 매칭 중 페이지 비활성화
-        setDisplayMatching(false);
-
         // <3> 챗온 매칭 완료 페이지 활성화
-        setDisplayMatched(true);
+        setDisplay("matched");
 
       }, 2000);
 
       // # 5초 후 ----------------------
       setTimeout(() => {
 
-        // <3> 챗온 매칭 완료 페이지 비활성화
-        setDisplayMatched(false);
-
         // <4> 챗온 채팅 페이지 활성화
-        setDisplayChat(true);
+        setDisplay("chat");
 
       }, 5000);
     });
@@ -599,7 +586,7 @@ export default function Online() {
   useEffect(() => {
     const handleBeforeUnload = (event: BeforeUnloadEvent) => {
       // 대화 중일 때만 다이어리 저장 시도
-      if (displayChat) {
+      if (display == "chat") {
         void saveToDiary(); // 비동기로 저장
         // 브라우저가 완전히 닫히는 걸 막지는 않지만, 백엔드 요청은 시도됨
       }
@@ -616,17 +603,17 @@ export default function Online() {
       window.removeEventListener('beforeunload', handleBeforeUnload);
 
       // 라우터로 페이지 이동 시 (언마운트)
-      if (displayChat) {
+      if (display == "chat") {
         void saveToDiary();
       }
     };
-  }, [displayChat]);
+  }, [display]);
 
   return (
     <>
       <ToastContainer />
-      {/* <1> 챗온 메인 페이지 -시작- */}
-      {displayMain && (
+      {/* <0> 챗온 메인 페이지 -시작- */}
+      {display == "main" && (
         <div style={{ width: '100%', minHeight: 'calc(100vh - 56px)', display: 'grid', placeItems: 'center', background: 'linear-gradient(135deg, #f0f9ff 0%, #e0e7ff 100%)' }}>
           <div style={{ width: 'min(500px, 90%)', textAlign: 'center' }}>
             <h1 style={{ fontSize: 28, fontWeight: 800, marginBottom: 8, background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
@@ -665,32 +652,64 @@ export default function Online() {
               </button>
 
               <button
-                disabled
+                onClick={displayColor}
                 style={{
                   padding: '16px 32px',
                   borderRadius: 16,
                   border: '2px solid #e5e7eb',
                   background: '#f9fafb',
-                  color: '#9ca3af',
                   fontSize: 16,
                   fontWeight: 600,
-                  cursor: 'not-allowed',
-                  opacity: 0.6
+                  opacity: 0.6,
+                  cursor: 'pointer'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                  e.currentTarget.style.boxShadow = '0 12px 32px rgba(102, 126, 234, 0.4)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = '0 8px 24px rgba(102, 126, 234, 0.3)';
                 }}
               >
                 🎨 색 추천받기
-                <div style={{ fontSize: 12, marginTop: 4 }}>
-                  (곧 출시됩니다)
-                </div>
               </button>
             </div>
           </div>
         </div>
       )}
-      {/* <1> 챗온 메인 페이지 -끝- */}
+      {/* <0> 챗온 메인 페이지 -끝- */}
+
+      {/* <1> 챗온 색상 페이지 -시작- */}
+      {display == "color" && (
+        <div id="colorPage">
+          <div className="color_grid">
+            <div onClick={startMatching} className="color_card delight">
+              <span className="color_card_text">기쁨</span>
+            </div>
+            <div onClick={startMatching} className="color_card stability">
+              <span className="color_card_text">안정</span>
+            </div>
+            <div onClick={startMatching} className="color_card sad">
+              <span className="color_card_text">슬픔</span>
+            </div>
+            <div onClick={startMatching} className="color_card anger">
+              <span className="color_card_text">분노</span>
+            </div>
+            <div onClick={startMatching} className="color_card unrest">
+              <span className="color_card_text">불안</span>
+            </div>
+            <div onClick={startMatching} className="color_card lethargy">
+              <span className="color_card_text">무기력</span>
+            </div>
+          </div>
+          <p className="color_question">당신의 마음과 맞을 색은 무엇일까요?</p>
+        </div>
+      )}
+      {/* <1> 챗온 색상 페이지 -끝- */}
 
       {/* <2> 챗온 매칭 중 페이지 -시작- */}
-      {displayMatching && (
+      {display == "matching" && (
         <div style={{ width: '100%', minHeight: 'calc(100vh - 56px)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(135deg, #f0f9ff 0%, #e0e7ff 100%)' }}>
           <div style={{ textAlign: 'center', width: 'min(500px, 90%)' }}>
             {/* Orb 애니메이션 */}
@@ -711,7 +730,7 @@ export default function Online() {
       {/* <2> 챗온 매칭 중 페이지 -끝- */}
 
       {/* <3> 챗온 매칭 완료 페이지 -시작- */}
-      {displayMatched && (
+      {display == "matched" && (
         <div style={{ width: '100%', minHeight: 'calc(100vh - 56px)', display: 'grid', placeItems: 'center', background: 'linear-gradient(135deg, #ecfdf5 0%, #dbeafe 100%)', padding: '40px 16px' }}>
           <div style={{ width: 'min(600px, 90%)', textAlign: 'center' }}>
             <div style={{ fontSize: 80, marginBottom: 24, animation: 'pulse 1.5s ease-in-out' }}>
@@ -776,7 +795,7 @@ export default function Online() {
       {/* <3> 챗온 매칭 완료 페이지 -끝- */}
 
       {/* <4> 챗온 채팅 페이지 -시작- */}
-      {displayChat && (
+      {display == "chat" && (
         <div style={{ width: '100%', maxWidth: 1400, margin: '0 auto', padding: '24px 16px' }}>
 
           {/* 메인 컨테이너: 프로필 - 채팅 - 프로필 */}

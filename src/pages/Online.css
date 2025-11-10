@@ -22,3 +22,88 @@
   border-radius: 20px;
   box-shadow: 0 10px 40px rgba(102, 126, 234, 0.15);
 }
+
+/* <1> 챗온 색상 페이지 */
+#colorPage {
+  width: 100vw;
+  height: 90vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.color_grid {
+  display: grid;
+  grid-template-columns: repeat(3, 20vw);
+  grid-gap: 4vh;
+  justify-content: center;
+}
+
+@media (max-width: 1024px) {
+  .color_grid {
+    grid-template-columns: repeat(2, 20vw);
+  }
+}
+
+.color_card {
+  position: relative;
+  width: 20vw;
+  height: 16vw;
+  border: 2px solid white;
+  border-radius: 20px;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.color_card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.2);
+}
+
+.color_card_text {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, 150%);
+  opacity: 0;
+  color: white;
+  font-weight: 700;
+  font-size: 2vw;
+  transition: 0.6s ease
+}
+
+.color_card:hover .color_card_text {
+  transform: translate(-50%, -50%);
+  opacity: 1;
+}
+
+.delight {
+  background: linear-gradient(135deg, #FFF176, #FFD54F, #FFB300, #FFE082);
+}
+
+.stability {
+  background: linear-gradient(135deg, #42A5F5, #1E88E5, #29B6F6, #81D4FA);
+}
+
+.sad {
+  background: linear-gradient(135deg, #5C6BC0, #3949AB, #7986CB, #9FA8DA);
+}
+
+.anger {
+  background: linear-gradient(135deg, #D32F2F, #F44336, #FF7043, #FF8A65);
+}
+
+.unrest {
+  background: linear-gradient(135deg, #8E24AA, #BA68C8, #E57373, #F06292);
+}
+
+.lethargy {
+  background: linear-gradient(135deg, #90A4AE, #B0BEC5, #CFD8DC, #ECEFF1);
+}
+
+.color_question {
+  margin-top: 4vh;
+  text-align: center;
+  font-size: 20px;
+  font-weight: 600
+}
