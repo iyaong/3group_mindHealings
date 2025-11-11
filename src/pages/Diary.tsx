@@ -890,9 +890,9 @@ export default function Diary() {
             }
 
             const data = await res.json();
-            if (import.meta.env.DEV) {
-                console.log('🎨 Analyze Response:', { mood: data?.mood });
-            }
+            console.log('🎨 [DEBUG] Analyze Response:', data);
+            console.log('🎨 [DEBUG] Mood Data:', data?.mood);
+            console.log('🎨 [DEBUG] ColorName:', data?.mood?.colorName);
             setMood(data?.mood ?? null);
 
             // 목표 달성 알림
@@ -1145,7 +1145,7 @@ export default function Diary() {
     return (
         <>
             <ToastContainer />
-            <div className="diary-layout" style={{ display: 'grid', gridTemplateColumns: '280px 1fr', gap: 0, height: 'calc(100vh - 56px)', boxSizing: 'border-box' }}>
+            <div className="diary-layout" style={{ display: 'grid', gridTemplateColumns: '280px 1fr', gap: 0, height: 'calc(100vh - 56px)', boxSizing: 'border-box', border: '1px solid #ccc' }}>
                 {/* 좌측: 목록 + 툴바 */}
                 <aside className="diary-sidebar" style={{ borderRight: '1px solid #e5e7eb', padding: 12, background: '#fafafa', display: 'flex', flexDirection: 'column', height: '100%', overflowY: 'auto', boxSizing: 'border-box' }}>
                     {/* 탭 전환 버튼 */}

@@ -3,15 +3,16 @@
     padding: 0;
 }
 
+#navWrap {width: 100%; display: flex; justify-content: center; align-items: center;}
+
 nav {
-    top: 0;
-    width: 100vw;
+    height: 60px;
+    width: 100%;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    gap: 12px;
-    padding: 0.75rem 1.5rem;
     z-index: 11;
+    padding: 0px 5vw;
 }
 
 nav.main {
@@ -27,7 +28,19 @@ nav:not(.main) {
     align-items: center;
     gap: 1rem;
     z-index: 12;
+    flex: 0 0 auto;
 }
+
+.nav-right {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    justify-content: space-between;
+
+    width: 7vw;
+}
+
+
 
 .nav-left .hamburger {
     display: none;
@@ -44,8 +57,11 @@ nav:not(.main) {
 
 .nav-center {
     display: flex;
+    height: 100%;
     align-items: center;
     gap: 25px;
+    flex: 1;
+    justify-content: center;
 }
 
 @media (max-width: 768px) {
@@ -55,17 +71,42 @@ nav:not(.main) {
 }
 
 .link-button {
-    padding: 6px 10px;
-    text-decoration: none;
-    font-weight: 600;
-}
-
-.nav-right {
-    width: 200px;
+    height: 100%;
     display: flex;
     align-items: center;
-    gap: 0.5rem;
+    position: relative;
+    text-decoration: none;
+    font-weight: 600;
+    transition: background-color 0.2s ease;
+    box-sizing: border-box;
 }
+
+/* 호버 시 작은 영역에만 배경 */
+.link-button > span {
+    padding: 6px 12px;
+    border-radius: 6px;
+    transition: background-color 0.2s ease;
+}
+
+.link-button:hover > span {
+    background-color: #f3f4f6;
+}
+
+
+
+
+
+
+.logout-btn { background: none;
+    border: none; cursor: pointer;}
+
+
+.login-btn { background: none;
+    border: none; cursor: pointer;}
+
+.register-btn {background: none;
+    border: none; cursor: pointer;}
+
 
 @media (max-width: 768px) {
     .nav-right {

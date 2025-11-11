@@ -104,7 +104,7 @@ export default function Login() {
                                 autoComplete="email"
                                 className="form-input"
                             />
-                            <label htmlFor="login-email" className="form-label">이메일 주소</label>
+                            <label htmlFor="login-email" className="form-label" style={{borderRadius:"10px"}}>이메일 주소</label>
                         </div>
                         <div className="form-group">
                             <input
@@ -122,7 +122,7 @@ export default function Login() {
                                 autoComplete="current-password"
                                 className="form-input"
                             />
-                            <label htmlFor="login-password" className="form-label">비밀번호</label>
+                            <label htmlFor="login-password" className="form-label" style={{borderRadius:"10px"}}>비밀번호</label>
                         </div>
                         <div className="button-group">
                             <button className="btn-primary" type="submit" disabled={loading}>

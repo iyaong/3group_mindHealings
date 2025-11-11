@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 import { useAuth } from "../hooks/useAuth";
 import "./Navigation.css";
 
+
 export default function Navigation() {
 
     // navigate: 페이지를 이동할 때 사용
@@ -73,6 +74,7 @@ export default function Navigation() {
 
     return (
         // 네비게이션 전체
+        <div id="navWrap">
         <nav className={`${isMainPage ? "main" : ""}`}>
             <div className="nav-left">
                 <div className="hamburger" onClick={() => setDisplayMobileMenu(!displayMobileMenu)}>
@@ -93,46 +95,52 @@ export default function Navigation() {
                     <NavLink
                         to="/diary" className="link-button"
                         style={({ isActive }) => ({
-                            color: isActive ? "#2563eb" : "#111"
+                            color: "#111",
+                            borderBottom: isActive ? "2px solid #D5BCFF" : "2px solid transparent"
                         })}
                     >
-                        다이어리
+                        <span>다이어리</span>
                     </NavLink>
 
                     <NavLink
                         to="/history" className="link-button"
                         style={({ isActive }) => ({
-                            color: isActive ? "#2563eb" : "#111"
+                            color: "#111",
+                            borderBottom: isActive ? "2px solid #D5BCFF" : "2px solid transparent"
                         })}
                     >
-                        히스토리
+                        <span>히스토리</span>
                     </NavLink>
                     <NavLink
                         to="/goals" className="link-button"
                         style={({ isActive }) => ({
-                            color: isActive ? "#2563eb" : "#111"
+                            color: "#111",
+                            borderBottom: isActive ? "2px solid #D5BCFF" : "2px solid transparent"
                         })}
                     >
-                        목표
+                        <span>목표</span>
                     </NavLink>
                     <NavLink
                         to="/online" className="link-button"
                         style={({ isActive }) => ({
-                            color: isActive ? "#2563eb" : "#111",
-                            fill: isActive ? "#2563eb" : "#111",
-                            display: "flex"
+                            color: "#111",
+                            fill: "#111",
+                            borderBottom: isActive ? "2px solid #D5BCFF" : "2px solid transparent"
                         })}
                     >
-                        챗온
-                        <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px"><path d="M620-520q25 0 42.5-17.5T680-580q0-25-17.5-42.5T620-640q-25 0-42.5 17.5T560-580q0 25 17.5 42.5T620-520Zm-280 0q25 0 42.5-17.5T400-580q0-25-17.5-42.5T340-640q-25 0-42.5 17.5T280-580q0 25 17.5 42.5T340-520Zm140 260q68 0 123.5-38.5T684-400H276q25 63 80.5 101.5T480-260Zm0 180q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Zm0-400Zm0 320q134 0 227-93t93-227q0-134-93-227t-227-93q-134 0-227 93t-93 227q0 134 93 227t227 93Z" /></svg>
+                        <span style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                            챗온
+                            <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px"><path d="M620-520q25 0 42.5-17.5T680-580q0-25-17.5-42.5T620-640q-25 0-42.5 17.5T560-580q0 25 17.5 42.5T620-520Zm-280 0q25 0 42.5-17.5T400-580q0-25-17.5-42.5T340-640q-25 0-42.5 17.5T280-580q0 25 17.5 42.5T340-520Zm140 260q68 0 123.5-38.5T684-400H276q25 63 80.5 101.5T480-260Zm0 180q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Zm0-400Zm0 320q134 0 227-93t93-227q0-134-93-227t-227-93q-134 0-227 93t-93 227q0 134 93 227t227 93Z" /></svg>
+                        </span>
                     </NavLink>
                     <NavLink
                         to="/support" className="link-button"
                         style={({ isActive }) => ({
-                            color: isActive ? "#2563eb" : "#111"
+                            color: "#111",
+                            borderBottom: isActive ? "2px solid #D5BCFF" : "2px solid transparent"
                         })}
                     >
-                        고객센터
+                        <span>고객센터</span>
                     </NavLink>
                 </div>
             )}
@@ -156,12 +164,12 @@ export default function Navigation() {
                         >
                             {user.nickname || user.email}{" 님"}
                         </span>
-                        <button onClick={onLogout}>로그아웃</button>
+                        <button className="logout-btn" onClick={onLogout}>로그아웃</button>
                     </>
                 ) : (
                     <>
-                        <button onClick={login}>로그인</button>
-                        <button onClick={register}>회원가입</button>
+                        <button className="login-btn" onClick={login}>로그인</button>
+                        <button className="register-btn" onClick={register}>회원가입</button>
                     </>
                 )}
             </div>
@@ -248,5 +256,6 @@ export default function Navigation() {
             )}
 
         </nav>
+        </div>
     )
 }

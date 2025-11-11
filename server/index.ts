@@ -438,16 +438,49 @@ app.post('/api/register', authLimiter, async (req, res) => {
   }
 });
 
-// 인증된 사용자 정보
-app.get('/api/me', authMiddleware, async (req: any, res) => {
+// 인증된 사용자 정보 - 401 대신 200으로 authenticated:false 반환
+app.get('/api/me', async (req: any, res) => {
   try {
+    const token = req.cookies?.token;
+    
+    // 토큰이 없으면 401 대신 200으로 미인증 상태 반환
+    if (!token) {
+      return res.status(200).json({ 
+        ok: true, 
+        authenticated: false,
+        user: null 
+      });
+    }
+    
+    // 토큰 검증
+    let decoded;
+    try {
+      decoded = jwt.verify(token, JWT_SECRET) as { sub: string; email: string };
+    } catch {
+      // 토큰이 유효하지 않으면 미인증 상태 반환
+      return res.status(200).json({ 
+        ok: true, 
+        authenticated: false,
+        user: null 
+      });
+    }
+    
     const client = await getClient();
     const db = client.db(DB_NAME);
     const users = db.collection('users');
-    const me = await users.findOne({ _id: new (await import('mongodb')).ObjectId(req.user.sub) });
-    if (!me) return res.status(404).json({ message: '사용자를 찾을 수 없습니다.' });
+    const me = await users.findOne({ _id: new (await import('mongodb')).ObjectId(decoded.sub) });
+    
+    if (!me) {
+      return res.status(200).json({ 
+        ok: true, 
+        authenticated: false,
+        user: null 
+      });
+    }
+    
     return res.json({ 
-      ok: true, 
+      ok: true,
+      authenticated: true,
       user: { 
         id: String(me._id), 
         email: me.email,

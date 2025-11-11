@@ -40,32 +40,27 @@ export function useAuth() {
     try {
       const res = await fetch('/api/me', { 
         credentials: 'include',
-        // 401 에러를 콘솔에 표시하지 않도록 설정
         headers: {
           'Accept': 'application/json',
         }
       });
-      
-      if (res.status === 401) {
-        // 로그아웃 상태 - 정상 케이스 (에러 아님)
-        setUser(null);
-        setLoading(false);
-        return;
-      }
       
       if (!res.ok) {
         throw new Error(`인증 확인 실패: ${res.status}`);
       }
       
       const data = await res.json();
+      
+      // 서버가 authenticated: false를 반환하면 로그아웃 상태
+      if (data.authenticated === false || !data.user) {
+        setUser(null);
+        setLoading(false);
+        return;
+      }
+      
       setUser(data.user ?? null);
     } catch (err) {
-      // 네트워크 에러 등 실제 문제가 있을 때만 로그
-      if (err instanceof TypeError) {
-        console.warn('Auth check failed (network error):', err.message);
-      } else {
-        console.error('Auth refresh error:', err);
-      }
+      console.error('Auth refresh error:', err);
       setError(err instanceof Error ? err.message : '인증 확인 중 오류');
       setUser(null);
     } finally {
