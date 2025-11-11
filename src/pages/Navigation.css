@@ -1,3 +1,10 @@
+@font-face {
+  font-family:'mk';
+  src: url('/fonts/memomentKkukkkuk.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+}
+
 * {
     margin: 0;
     padding: 0;
@@ -24,9 +31,11 @@ nav {
     justify-content: space-between;
     align-items: center;
     z-index: 11;
-    padding: 0px 40px;
+    padding: 0px 60px;
     box-sizing: border-box;
 }
+
+h1 p {font-family:"mk" !important}
 
 nav.main {
     background-color: transparent;
