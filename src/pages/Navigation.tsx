@@ -88,7 +88,7 @@ export default function Navigation() {
         // 네비게이션 전체
         <div id="navWrap" className={`${isMainPage ? "main-page" : ""}`}>
         <nav className={`${isMainPage ? "main" : ""}`}>
-            <div className="nav-left">
+            <div className={`nav-left ${displayMobileMenu ? "mobile-nav-left" : ""}`}>
                 <div className="hamburger" onClick={() => setDisplayMobileMenu(!displayMobileMenu)}>
                     ☰
                 </div>
@@ -248,11 +248,11 @@ export default function Navigation() {
 
                     <div className="mobile-menu-bottom">
                     {loading ? (
-                        <span>상태 확인 중...</span>
+                        <p>상태 확인 중...</p>
                     ) : user ? (
                         <>
-                            <span
-                                className="profile"
+                        <p
+                                className="m-profile"
                                 onClick={() => navigate('/profile')}
                                 onMouseEnter={(e) => {
                                     e.currentTarget.style.background = "#eef2ff";
@@ -263,7 +263,7 @@ export default function Navigation() {
                                 title="프로필 페이지로 이동"
                             >
                                 {user.nickname || user.email}{" 님"}
-                            </span>
+                            </p>
                             <button className="m-logout-btn" onClick={onLogout}>로그아웃</button>
                         </>
                     ) : (
