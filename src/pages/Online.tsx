@@ -689,23 +689,24 @@ export default function Online() {
       {display == "color" && (
         <div id="colorPage">
           <div className="color_grid">
-            <div onClick={startMatching} className="color_card delight">
-              <span className="color_card_text">기쁨</span>
+            {/* 색 영역에 마우스 호버 시 감정 텍스트 대신 컬러 네임을 보여주도록 변경 */}
+            <div onClick={startMatching} className="color_card delight" data-color-name="노랑">
+              <span className="color_card_text">노랑</span>
             </div>
-            <div onClick={startMatching} className="color_card stability">
-              <span className="color_card_text">안정</span>
+            <div onClick={startMatching} className="color_card stability" data-color-name="파랑">
+              <span className="color_card_text">파랑</span>
             </div>
-            <div onClick={startMatching} className="color_card sad">
-              <span className="color_card_text">슬픔</span>
+            <div onClick={startMatching} className="color_card sad" data-color-name="보라">
+              <span className="color_card_text">보라</span>
             </div>
-            <div onClick={startMatching} className="color_card anger">
-              <span className="color_card_text">분노</span>
+            <div onClick={startMatching} className="color_card anger" data-color-name="빨강">
+              <span className="color_card_text">빨강</span>
             </div>
-            <div onClick={startMatching} className="color_card unrest">
-              <span className="color_card_text">불안</span>
+            <div onClick={startMatching} className="color_card unrest" data-color-name="자주">
+              <span className="color_card_text">자주</span>
             </div>
-            <div onClick={startMatching} className="color_card lethargy">
-              <span className="color_card_text">무기력</span>
+            <div onClick={startMatching} className="color_card lethargy" data-color-name="회색">
+              <span className="color_card_text">회색</span>
             </div>
           </div>
           <p className="color_question">당신의 마음과 맞을 색은 무엇일까요?</p>
