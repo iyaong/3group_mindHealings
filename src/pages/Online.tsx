@@ -621,7 +621,7 @@ export default function Online() {
       {display == "main" && (
         <div style={{ width: '100%', minHeight: 'calc(100vh - 56px)', display: 'grid', placeItems: 'center', background: 'linear-gradient(135deg, #f0f9ff 0%, #e0e7ff 100%)' }}>
           <div style={{ width: 'min(500px, 90%)', textAlign: 'center' }}>
-            <h1 style={{ fontSize: 28, fontWeight: 800, marginBottom: 8, background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
+            <h1 style={{ fontSize: 28, fontWeight: 800, marginBottom: 8, background: 'linear-gradient(135deg, #C1E6F1 0%, #D5BCFF 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
               오늘, 새로운 마음을 만나보세요 💙
             </h1>
             <p style={{ fontSize: 16, color: '#6b7280', marginBottom: 40 }}>
@@ -636,17 +636,17 @@ export default function Online() {
                   padding: '16px 32px',
                   borderRadius: 16,
                   border: 'none',
-                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                  background: 'linear-gradient(135deg, #C1E6F1 0%, #D5BCFF 100%)',
                   color: '#fff',
                   fontSize: 18,
                   fontWeight: 700,
                   cursor: 'pointer',
-                  boxShadow: '0 8px 24px rgba(102, 126, 234, 0.3)',
+                  boxShadow: '0 8px 24px rgba(193, 230, 241, 0.3)',
                   transition: 'all 0.3s ease'
                 }}
                 onMouseEnter={(e) => {
                   e.currentTarget.style.transform = 'translateY(-2px)';
-                  e.currentTarget.style.boxShadow = '0 12px 32px rgba(102, 126, 234, 0.4)';
+                  e.currentTarget.style.boxShadow = '0 12px 32px rgba(193, 230, 241, 0.4)';
                 }}
                 onMouseLeave={(e) => {
                   e.currentTarget.style.transform = 'translateY(0)';
@@ -725,9 +725,9 @@ export default function Online() {
               {matchingMessage}
             </h2>
             <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginTop: 24 }}>
-              <div style={{ width: 12, height: 12, borderRadius: '50%', background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', animation: 'pulse 1s ease-in-out infinite' }} />
-              <div style={{ width: 12, height: 12, borderRadius: '50%', background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', animation: 'pulse 1s ease-in-out infinite 0.2s' }} />
-              <div style={{ width: 12, height: 12, borderRadius: '50%', background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', animation: 'pulse 1s ease-in-out infinite 0.4s' }} />
+              <div style={{ width: 12, height: 12, borderRadius: '50%', background: 'linear-gradient(135deg, #C1E6F1 0%, #D5BCFF 100%)', animation: 'pulse 1s ease-in-out infinite' }} />
+              <div style={{ width: 12, height: 12, borderRadius: '50%', background: 'linear-gradient(135deg, #C1E6F1 0%, #D5BCFF 100%)', animation: 'pulse 1s ease-in-out infinite 0.2s' }} />
+              <div style={{ width: 12, height: 12, borderRadius: '50%', background: 'linear-gradient(135deg, #C1E6F1 0%, #D5BCFF 100%)', animation: 'pulse 1s ease-in-out infinite 0.4s' }} />
             </div>
           </div>
         </div>
@@ -966,11 +966,11 @@ export default function Online() {
                       padding: '10px 20px',
                       borderRadius: 12,
                       border: 'none',
-                      background: !input.trim() ? 'rgba(147, 197, 253, 0.8)' : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                      background: !input.trim() ? 'rgba(193, 230, 241, 0.8)' : 'linear-gradient(135deg, #C1E6F1 0%, #D5BCFF 100%)',
                       color: '#fff',
                       cursor: !input.trim() ? 'not-allowed' : 'pointer',
                       fontWeight: 600,
-                      boxShadow: !input.trim() ? 'none' : '0 4px 12px rgba(102, 126, 234, 0.4)',
+                      boxShadow: !input.trim() ? 'none' : '0 4px 12px rgba(193, 230, 241, 0.4)',
                       transition: 'all 0.3s ease',
                       transform: !input.trim() ? 'scale(0.95)' : 'scale(1)',
                     }}

@@ -1194,7 +1194,7 @@ export default function Diary() {
                                 padding: '8px 12px',
                                 border: 'none',
                                 borderRadius: 8,
-                                background: activeTab === 'ai' ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' : 'transparent',
+                                background: activeTab === 'ai' ? 'linear-gradient(135deg, #C1E6F1 0%, #D5BCFF 100%)' : 'transparent',
                                 color: activeTab === 'ai' ? '#fff' : '#6b7280',
                                 fontWeight: 600,
                                 cursor: 'pointer',
@@ -1211,7 +1211,7 @@ export default function Diary() {
                                 padding: '8px 12px',
                                 border: 'none',
                                 borderRadius: 8,
-                                background: activeTab === 'online' ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' : 'transparent',
+                                background: activeTab === 'online' ? 'linear-gradient(135deg, #C1E6F1 0%, #D5BCFF 100%)' : 'transparent',
                                 color: activeTab === 'online' ? '#fff' : '#6b7280',
                                 fontWeight: 600,
                                 cursor: 'pointer',
@@ -1943,7 +1943,7 @@ export default function Diary() {
                                                                         border: 'none',
                                                                         background: messageCount >= MIN_REQUIRED_MESSAGES
                                                                             ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)'
-                                                                            : 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
+                                                                            : 'linear-gradient(135deg, #C1E6F1 0%, #D5BCFF 100%)',
                                                                         color: '#fff',
                                                                         cursor: 'pointer',
                                                                         fontWeight: 600,

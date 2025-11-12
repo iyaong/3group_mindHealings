@@ -118,8 +118,8 @@ export default function Support() {
               fontWeight: 600,
               background: 'none',
               border: 'none',
-              borderBottom: activeTab === 'inquiry' ? '3px solid #667eea' : '3px solid transparent',
-              color: activeTab === 'inquiry' ? '#667eea' : '#6b7280',
+              borderBottom: activeTab === 'inquiry' ? '3px solid #C1E6F1' : '3px solid transparent',
+              color: activeTab === 'inquiry' ? '#C1E6F1' : '#6b7280',
               cursor: 'pointer',
               transition: 'all 0.3s',
               marginBottom: -2
@@ -135,8 +135,8 @@ export default function Support() {
               fontWeight: 600,
               background: 'none',
               border: 'none',
-              borderBottom: activeTab === 'history' ? '3px solid #667eea' : '3px solid transparent',
-              color: activeTab === 'history' ? '#667eea' : '#6b7280',
+              borderBottom: activeTab === 'history' ? '3px solid #C1E6F1' : '3px solid transparent',
+              color: activeTab === 'history' ? '#C1E6F1' : '#6b7280',
               cursor: 'pointer',
               transition: 'all 0.3s',
               marginBottom: -2
@@ -152,7 +152,7 @@ export default function Support() {
 
       {/* 문의하기 섹션 */}
       <section style={{
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        background: 'linear-gradient(135deg, #C1E6F1 0%, #D5BCFF 100%)',
         padding: 48,
         borderRadius: 16,
         color: 'white',
@@ -487,7 +487,7 @@ function InquiryForm() {
             fontSize: 16,
             fontWeight: 600,
             color: 'white',
-            background: isSubmitting ? '#9ca3af' : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            background: isSubmitting ? '#9ca3af' : 'linear-gradient(135deg, #C1E6F1 0%, #D5BCFF 100%)',
             border: 'none',
             borderRadius: 8,
             cursor: isSubmitting ? 'not-allowed' : 'pointer',

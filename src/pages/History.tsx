@@ -149,7 +149,7 @@ export default function History() {
   return (
     <div style={{ 
       minHeight: 'calc(100vh - 56px)',
-      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+      background: 'linear-gradient(135deg, #C1E6F1 0%, #D5BCFF 100%)',
       padding: '32px 16px',
       boxSizing: 'border-box'
     }}>
@@ -175,7 +175,7 @@ export default function History() {
               margin: 0, 
               fontSize: 32, 
               fontWeight: 800,
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              background: 'linear-gradient(135deg, #C1E6F1 0%, #D5BCFF 100%)',
               WebkitBackgroundClip: 'text',
               WebkitTextFillColor: 'transparent',
               marginBottom: 8
@@ -202,13 +202,13 @@ export default function History() {
                     <span
                       style={{
                         display: 'inline-block',
-                        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                        background: 'linear-gradient(135deg, #C1E6F1 0%, #D5BCFF 100%)',
                         color: '#fff',
                         padding: '4px 12px',
                         borderRadius: '20px',
                         fontSize: '14px',
                         fontWeight: '600',
-                        boxShadow: '0 2px 8px rgba(102, 126, 234, 0.3)',
+                        boxShadow: '0 2px 8px rgba(193, 230, 241, 0.3)',
                       }}
                     >
                       🏆 {userTitle}
@@ -290,7 +290,7 @@ export default function History() {
                   border: 'none',
                   borderRadius: 8,
                   background: chartDays === days 
-                    ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' 
+                    ? 'linear-gradient(135deg, #C1E6F1 0%, #D5BCFF 100%)' 
                     : '#f3f4f6',
                   color: chartDays === days ? '#fff' : '#6b7280',
                   cursor: 'pointer',

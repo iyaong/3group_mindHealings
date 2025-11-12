@@ -386,7 +386,7 @@ const Profile: React.FC = () => {
             style={{
               padding: '10px 20px',
               fontSize: '16px',
-              backgroundColor: changingPassword ? '#ccc' : '#667eea',
+              backgroundColor: changingPassword ? '#ccc' : '#C1E6F1',
               color: 'white',
               border: 'none',
               borderRadius: '8px',
@@ -412,7 +412,7 @@ const Profile: React.FC = () => {
             width: '100%',
             padding: '12px',
             fontSize: '18px',
-            backgroundColor: isSaving ? '#ccc' : '#667eea',
+            backgroundColor: isSaving ? '#ccc' : '#C1E6F1',
             color: 'white',
             border: 'none',
             borderRadius: '8px',
@@ -460,7 +460,7 @@ const Profile: React.FC = () => {
             marginTop: '20px',
             padding: '10px 20px',
             fontSize: '15px',
-            backgroundColor: '#667eea',
+            backgroundColor: '#C1E6F1',
             color: 'white',
             border: 'none',
             borderRadius: '8px',
@@ -470,11 +470,11 @@ const Profile: React.FC = () => {
             width: '100%'
           }}
           onMouseEnter={(e) => {
-            e.currentTarget.style.backgroundColor = '#5568d3';
+            e.currentTarget.style.backgroundColor = '#A8D8E6';
             e.currentTarget.style.transform = 'translateY(-1px)';
           }}
           onMouseLeave={(e) => {
-            e.currentTarget.style.backgroundColor = '#667eea';
+            e.currentTarget.style.backgroundColor = '#C1E6F1';
             e.currentTarget.style.transform = 'translateY(0)';
           }}
         >
