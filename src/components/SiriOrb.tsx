@@ -351,7 +351,7 @@ export default React.memo(function SiriOrb({
         }}
       >
         <Canvas 
-          camera={{ position: [0, 0, 2.8], fov: 40 }}
+          camera={{ position: [0, 0, 2.8], fov: 35 }}
           gl={{ alpha: true, antialias: true, preserveDrawingBuffer: true }}
           style={{ background: 'transparent' }}
         >

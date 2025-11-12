@@ -170,6 +170,21 @@ export default function Diary() {
     const hasSummarizedSessionRef = useRef<string | null>(null); // 이미 요약 실행한 세션 ID (중복 방지)
     const bottomRef = useRef<HTMLDivElement | null>(null);
     const textareaRef = useRef<HTMLTextAreaElement | null>(null); // textarea 참조
+    
+    // 모바일 사이드바 상태
+    const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState<boolean>(false);
+
+    // 화면 크기가 1024px 이상이면 사이드바 자동 닫기
+    useEffect(() => {
+        const handleResize = () => {
+            if (window.innerWidth > 1024 && isMobileSidebarOpen) {
+                setIsMobileSidebarOpen(false);
+            }
+        };
+
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, [isMobileSidebarOpen]);
 
     useEffect(() => {
         if (loading) return;
@@ -1034,6 +1049,8 @@ export default function Diary() {
             await loadSession(id);
             // 새 대화가 추가된 날짜를 자동으로 펼치기
             setExpandedDates((prev) => new Set(prev).add(today));
+            // 모바일에서 새 대화 생성 후 사이드바 닫기
+            setIsMobileSidebarOpen(false);
         } catch { }
     };
 
@@ -1148,9 +1165,26 @@ export default function Diary() {
     return (
         <>
             <ToastContainer />
-            <div className="diary-layout" style={{ display: 'grid', gridTemplateColumns: '280px 1fr', gap: 0, height: 'calc(100vh - 56px)', boxSizing: 'border-box', border: '1px solid #ccc' }}>
+            
+            {/* 모바일 사이드바 오버레이 */}
+            <div 
+                className={`mobile-sidebar-overlay ${isMobileSidebarOpen ? 'active' : ''}`}
+                onClick={() => setIsMobileSidebarOpen(false)}
+                style={{ display: isMobileSidebarOpen ? 'block' : 'none' }}
+            />
+            
+            {/* 모바일 사이드바 토글 버튼 */}
+            <button
+                className="mobile-sidebar-toggle"
+                onClick={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
+                aria-label="메뉴 열기"
+            >
+                {isMobileSidebarOpen ? '✕' : '☰'}
+            </button>
+            
+            <div className="diary-layout">
                 {/* 좌측: 목록 + 툴바 */}
-                <aside className="diary-sidebar" style={{ borderRight: '1px solid #e5e7eb', padding: 12, background: '#fafafa', display: 'flex', flexDirection: 'column', height: '100%', overflowY: 'auto', boxSizing: 'border-box' }}>
+                <aside className={`diary-sidebar ${isMobileSidebarOpen ? 'mobile-open' : ''}`}>
                     {/* 탭 전환 버튼 */}
                     <div style={{ display: 'flex', gap: 6, marginBottom: 16, background: '#fff', borderRadius: 10, padding: 4, border: '1px solid #e5e7eb', boxSizing: 'border-box' }}>
                         <button
@@ -1243,7 +1277,7 @@ export default function Diary() {
 
                     {/* AI 대화 목록 */}
                     {activeTab === 'ai' && (
-                        <div className="diary-list" style={{ display: 'flex', flexDirection: 'column', gap: 6, overflowY: 'auto', flex: 1, minHeight: 0 }}>
+                        <div className="diary-list" style={{ display: 'flex', flexDirection: 'column', gap: 6, overflowY: 'auto', flex: 1, minHeight: "54vh" }}>
                             {loadingList ? (
                                 <DiaryListSkeleton />
                             ) : list.length === 0 ? (
@@ -1396,6 +1430,8 @@ export default function Diary() {
                                                                                     if (!expandedDates.has(date)) {
                                                                                         setExpandedDates((prev) => new Set(prev).add(date));
                                                                                     }
+                                                                                    // 모바일에서 세션 선택 후 사이드바 닫기
+                                                                                    setIsMobileSidebarOpen(false);
                                                                                 }}
                                                                                 style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'transparent', border: 'none', padding: 0, cursor: 'pointer', flex: 1, textAlign: 'left' }}
                                                                             >
@@ -1603,7 +1639,9 @@ export default function Diary() {
                                                                                 onClick={() => { 
                                                                                     setSelected(item._id); 
                                                                                     setSelectedDate(item.date); 
-                                                                                    void loadSession(item._id); 
+                                                                                    void loadSession(item._id);
+                                                                                    // 모바일에서 세션 선택 후 사이드바 닫기
+                                                                                    setIsMobileSidebarOpen(false);
                                                                                 }}
                                                                                 style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'transparent', border: 'none', padding: 0, cursor: 'pointer', flex: 1, textAlign: 'left' }}
                                                                             >
@@ -1732,7 +1770,7 @@ export default function Diary() {
                                         display: 'flex',
                                         flexDirection: 'row',
                                         alignItems: 'center',
-                                        gap: 16,
+                                        
                                         flexShrink: 0,
                                         width: '100%',
                                         justifyContent: 'flex-start'
@@ -1831,10 +1869,11 @@ export default function Diary() {
                                                             }}>
                                                                 {/* 감정과 컬러 정보 */}
                                                                 <div style={{ 
+                                                                    width: "100%",
                                                                     display: 'flex', 
                                                                     alignItems: 'center', 
                                                                     justifyContent: 'space-between',
-                                                                    gap: 12
+                                                                    gap: 10
                                                                 }}>
                                                                     <div style={{ fontSize: 13, color: '#0369a1' }}>
                                                                         감정: <strong style={{ fontSize: 14 }}>{mood.emotion}</strong> ({Math.round(mood.score * 100)}%)
@@ -1995,9 +2034,9 @@ export default function Diary() {
 
                                         {/* 상세 정보 패널 (오른쪽) - 항상 표시 */}
                                         {mood && (
-                                            <div style={{
-                                                minWidth: 260,
-                                                maxWidth: 280,
+                                            <div className="keyword-panel" style={{
+                                
+                                                width:"30%",
                                                 background: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)',
                                                 backdropFilter: 'blur(12px)',
                                                 borderRadius: 16,
