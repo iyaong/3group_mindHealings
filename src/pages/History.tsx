@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDisplay } from "../contexts/DisplayContext";
 import { useAuth } from '../hooks/useAuth';
+import fetchWithBackoff from '../utils/api';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { InlineError } from '../components/ErrorFallback';
 import { getErrorMessage, logError } from '../utils/errorUtils';
@@ -73,10 +74,14 @@ export default function History() {
 
   // 유저 닉네임 로드 및 실시간 업데이트
   useEffect(() => {
+    let mounted = true;
+    const controller = new AbortController();
+
     const loadNickname = async () => {
       try {
         setNicknameError(null);
-        const res = await fetch('/api/me', { credentials: 'include' });
+        const res = await fetchWithBackoff('/api/me', { credentials: 'include', signal: controller.signal } as any);
+        if (!mounted) return;
         if (res.ok) {
           const data = await res.json();
           if (data.user?.nickname) {
@@ -86,6 +91,7 @@ export default function History() {
           throw new Error(`HTTP ${res.status}`);
         }
       } catch (e) {
+        if ((e as any)?.name === 'AbortError') return;
         logError('loadNickname', e);
         setNicknameError(getErrorMessage(e));
       }
@@ -104,6 +110,8 @@ export default function History() {
     window.addEventListener('profileUpdated', handleProfileUpdate);
 
     return () => {
+      mounted = false;
+      controller.abort();
       window.removeEventListener('profileUpdated', handleProfileUpdate);
     };
   }, [user]);

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../hooks/useAuth';
+import fetchWithBackoff from '../utils/api';
 import { useModal } from '../hooks/useModal';
 import ProfileCard from '../components/ProfileCard';
 import { InlineSpinner } from '../components/LoadingSpinner';
@@ -27,10 +28,14 @@ const Profile: React.FC = () => {
 
   // 프로필 로드 (bio, 감정 TOP3, 오늘의 감정 포함)
   useEffect(() => {
+    let mounted = true;
+    const controller = new AbortController();
+
     const loadProfile = async () => {
       try {
         // 기본 프로필 정보 로드
-        const res = await fetch('/api/me', { credentials: 'include' });
+        const res = await fetchWithBackoff('/api/me', { credentials: 'include', signal: controller.signal } as any);
+        if (!mounted) return;
         if (res.ok) {
           const data = await res.json();
           if (data.user) {
@@ -47,9 +52,7 @@ const Profile: React.FC = () => {
         }
 
         // 전체 감정 분석의 주 감정 색상 로드 (칭호 API에서)
-        const titleRes = await fetch('/api/user/emotion-title', {
-          credentials: 'include'
-        });
+        const titleRes = await fetchWithBackoff('/api/user/emotion-title', { credentials: 'include', signal: controller.signal } as any);
         if (titleRes.ok) {
           const titleData = await titleRes.json();
           if (titleData.emotion && titleData.color) {
@@ -65,9 +68,7 @@ const Profile: React.FC = () => {
         }
 
         // 감정 TOP3 로드
-        const statsRes = await fetch('/api/user/emotion-stats', {
-          credentials: 'include'
-        });
+        const statsRes = await fetchWithBackoff('/api/user/emotion-stats', { credentials: 'include', signal: controller.signal } as any);
         if (statsRes.ok) {
           const statsData = await statsRes.json();
           if (statsData.ok && statsData.topEmotions) {
@@ -78,11 +79,20 @@ const Profile: React.FC = () => {
           }
         }
       } catch (error) {
-        console.error('프로필 로드 실패:', error);
+        if ((error as any)?.name === 'AbortError') {
+          console.log('프로필 로드 취소됨');
+        } else {
+          console.error('프로필 로드 실패:', error);
+        }
       }
     };
 
     loadProfile();
+
+    return () => {
+      mounted = false;
+      controller.abort();
+    };
   }, []);
 
   // localStorage에서 칭호 가져오기

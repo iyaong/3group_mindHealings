@@ -18,6 +18,7 @@ import Profile from './pages/Profile';
 import Support from './pages/Support';
 import Onboarding from './components/Onboarding';
 
+
 import './styles/theme.css'; // 디자인 시스템 테마
 import './App.css';
 import './styles/responsive.css'; // 모바일 반응형 스타일

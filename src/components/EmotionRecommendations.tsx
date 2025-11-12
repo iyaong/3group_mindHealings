@@ -1,5 +1,6 @@
 // EmotionRecommendations.tsx - 감정 기반 활동 추천 컴포넌트
 import { useEffect, useState } from 'react';
+import fetchWithBackoff from '../utils/api';
 
 interface Recommendation {
   category: string;
@@ -20,7 +21,7 @@ export default function EmotionRecommendations() {
 
   const fetchRecommendations = async () => {
     try {
-      const res = await fetch('/api/user/emotion-recommendations', {
+      const res = await fetchWithBackoff('/api/user/emotion-recommendations', {
         credentials: 'include'
       });
 

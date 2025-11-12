@@ -8,6 +8,7 @@
   justify-content: center;
   background: var(--color-background);
   padding: var(--spacing-xl);
+  padding-top: 60px;
 }
 
 .login-container {
