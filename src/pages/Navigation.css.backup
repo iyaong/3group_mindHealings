@@ -78,6 +78,8 @@ nav:not(.main) {
     align-items: center;
     justify-content: space-between;
     min-width: 0;
+    flex-shrink: 1;
+    gap: 15px;
 }
 
 
@@ -101,27 +103,65 @@ nav:not(.main) {
     display: none;
     font-size: 24px;
     cursor: pointer;
-    
 }
 
+/* 중간 크기: nav-center 간격과 크기 축소 */
+@media (max-width: 1200px) {
+    .nav-center {
+        gap: 10px;
+        width: auto;
+        flex-shrink: 2;
+    }
+    
+    .link-button > span {
+        padding: 6px 10px;
+        font-size: 14px;
+    }
+}
 
+@media (max-width: 1024px) {
+    .nav-center {
+        gap: 8px;
+    }
+    
+    .link-button > span {
+        padding: 6px 8px;
+        font-size: 14px;
+    }
+    
+    .profile {
+        max-width: 100px;
+        font-size: 14px;
+    }
+}
 
-
-
-
-
-@media (max-width: 768px) {
+/* 모바일: 햄버거 메뉴 전환 */
+@media (max-width: 900px) {
     .nav-left .hamburger {
         display: block;
     }
-    .main {padding: 0 30px;}
-    .m-login-btn {background: none; border: none;}
-    .m-logout-btn {background: none; border: none;}
-    .m-register-btn {background: none; border: none;}
+    
     .nav-center {
         display: none;
     }
     
+    .nav-right {
+        display: none;
+    }
+}
+
+@media (max-width: 768px) {
+    nav {
+        padding: 0 20px;
+    }
+    
+    .main {
+        padding: 0 20px;
+    }
+    
+    .m-login-btn {background: none; border: none;}
+    .m-logout-btn {background: none; border: none;}
+    .m-register-btn {background: none; border: none;}
 }
 
 

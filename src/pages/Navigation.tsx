@@ -37,6 +37,18 @@ export default function Navigation() {
     // menuOpen: 모바일 메뉴 활성화 상태
     const [displayMobileMenu, setDisplayMobileMenu] = useState(false);
 
+    // 화면 크기가 변경되면 모바일 메뉴 자동 닫기
+    useEffect(() => {
+        const handleResize = () => {
+            if (window.innerWidth > 769 && displayMobileMenu) {
+                setDisplayMobileMenu(false);
+            }
+        };
+
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, [displayMobileMenu]);
+
     useEffect(() => {
         try {
             if (!location.pathname.startsWith('/chat')) {
@@ -74,7 +86,7 @@ export default function Navigation() {
 
     return (
         // 네비게이션 전체
-        <div id="navWrap">
+        <div id="navWrap" className={`${isMainPage ? "main-page" : ""}`}>
         <nav className={`${isMainPage ? "main" : ""}`}>
             <div className="nav-left">
                 <div className="hamburger" onClick={() => setDisplayMobileMenu(!displayMobileMenu)}>
@@ -186,6 +198,8 @@ export default function Navigation() {
             {/* 모바일 메뉴 */}
             {displayMobileMenu && (
                 <div className="mobile-menu">
+                    <div className="mobile-wrap">
+                    <div className="mobile-menu-top">
                     <NavLink
                         to="/diary" className="link-button"
                         style={({ isActive }) => ({
@@ -230,7 +244,9 @@ export default function Navigation() {
                     >
                         고객센터
                     </NavLink>
+                    </div>
 
+                    <div className="mobile-menu-bottom">
                     {loading ? (
                         <span>상태 확인 중...</span>
                     ) : user ? (
@@ -248,14 +264,16 @@ export default function Navigation() {
                             >
                                 {user.nickname || user.email}{" 님"}
                             </span>
-                            <button onClick={onLogout}>로그아웃</button>
+                            <button className="m-logout-btn" onClick={onLogout}>로그아웃</button>
                         </>
                     ) : (
                         <>
-                            <button onClick={login}>로그인</button>
-                            <button onClick={register}>회원가입</button>
+                            <button className="m-login-btn" onClick={login}>로그인</button>
+                            <button className="m-register-btn" onClick={register}>회원가입</button>
                         </>
                     )}
+                    </div>
+                    </div>
                 </div>
             )}
 
