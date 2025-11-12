@@ -182,7 +182,10 @@
     flex-direction: column;
     height: 100%;
     overflow: hidden;
+    overflow-x: hidden;
     position: relative;
+    box-sizing: border-box;
+    max-width: 100%;
 }
 
 /* 모바일 사이드바 토글 버튼 */
@@ -240,6 +243,11 @@
     .keyword-panel {
         display: none !important;
     }
+    
+    /* 말풍선 크기 조정 */
+    .diary-main-content > div {
+        max-width: 100% !important;
+    }
 }
 
 /* 태블릿 (768px ~ 1024px) */
@@ -247,6 +255,7 @@
     .diary_chat_area {
         width: 100vw;
         max-width: 100%;
+        overflow-x: hidden;
     }
 
     .diary-layout {

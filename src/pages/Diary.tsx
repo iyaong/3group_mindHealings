@@ -1770,10 +1770,11 @@ export default function Diary() {
                                         display: 'flex',
                                         flexDirection: 'row',
                                         alignItems: 'center',
-                                        
                                         flexShrink: 0,
                                         width: '100%',
-                                        justifyContent: 'flex-start'
+                                        maxWidth: '100%',
+                                        justifyContent: 'flex-start',
+                                        overflow: 'hidden'
                                     }}>
                                         {/* SiriOrb - 왼쪽 */}
                                         <div style={{
@@ -1813,13 +1814,16 @@ export default function Diary() {
                                             display: 'flex',
                                             gap: 0,
                                             flex: 1,
-                                            alignItems: 'flex-start'
+                                            alignItems: 'flex-start',
+                                            maxWidth: 'calc(100% - 200px)',
+                                            minWidth: 0
                                         }}>
                                             {/* 기본 말풍선 */}
                                             <div style={{
                                                 position: 'relative',
                                                 minWidth: 280,
-                                                maxWidth: 400,
+                                                maxWidth: '100%',
+                                                width: 'fit-content',
                                                 background: 'rgba(255, 255, 255, 0.95)',
                                                 backdropFilter: 'blur(12px)',
                                                 borderRadius: 16,
@@ -1828,7 +1832,7 @@ export default function Diary() {
                                                 border: '2px solid rgba(255, 255, 255, 0.8)',
                                                 animation: 'fadeInUp 0.5s ease-out',
                                                 transition: 'all 0.3s ease',
-                                                flexShrink: 0
+                                                flexShrink: 1
                                             }}>
                                             {/* 말풍선 꼬리 - 왼쪽으로 */}
                                             <div style={{
