@@ -16,6 +16,7 @@ import History from './pages/History';
 import Goals from './components/Goals';
 import Profile from './pages/Profile';
 import Support from './pages/Support';
+import Subscription from './pages/Subscription';
 import Onboarding from './components/Onboarding';
 
 
@@ -77,6 +78,7 @@ function AppMap() {
             <Route path="/online" element={<Online />} />
             <Route path="/support" element={<Support />} />
             <Route path="/profile" element={<Profile />} />
+            <Route path="/subscription" element={<Subscription />} />
             <Route path="/orb-showcase" element={<OrbShowcase />} />
             <Route path="/history" element={<History />} />
             <Route path="/goals" element={<Goals />} />

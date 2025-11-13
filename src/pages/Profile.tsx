@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import fetchWithBackoff from '../utils/api';
 import { useModal } from '../hooks/useModal';
@@ -8,6 +9,7 @@ import type { UserProfile } from '../types/api';
 import './Profile.css';
 
 const Profile: React.FC = () => {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const { showAlert, ModalContainer } = useModal();
   
@@ -444,7 +446,73 @@ const Profile: React.FC = () => {
         </button>
       </div>
 
-      {/* 섹션 3: 도움말 */}
+      {/* 섹션 3: 구독 플랜 */}
+      <div style={{
+        backgroundColor: 'white',
+        borderRadius: '12px',
+        padding: '24px',
+        marginBottom: '24px',
+        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+      }}>
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '20px',
+          flexWrap: 'wrap',
+        }}>
+          <div style={{ flex: 1, minWidth: '250px' }}>
+            <h2 style={{ 
+              marginBottom: '12px', 
+              color: 'white', 
+              fontSize: '24px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px'
+            }}>
+              💎 Premium으로 업그레이드
+            </h2>
+            <p style={{ 
+              color: 'rgba(255, 255, 255, 0.95)', 
+              fontSize: '15px',
+              lineHeight: '1.6',
+              margin: 0,
+            }}>
+              고급 감정 분석, AI 예측, 프리미엄 테마 등<br />
+              모든 기능을 무제한으로 이용하세요
+            </p>
+          </div>
+          <button
+            onClick={() => navigate('/subscription')}
+            style={{
+              padding: '14px 32px',
+              fontSize: '17px',
+              fontWeight: 700,
+              color: '#667eea',
+              backgroundColor: 'white',
+              border: 'none',
+              borderRadius: '10px',
+              cursor: 'pointer',
+              transition: 'all 0.3s ease',
+              boxShadow: '0 4px 15px rgba(0, 0, 0, 0.2)',
+              whiteSpace: 'nowrap',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = 'translateY(-2px)';
+              e.currentTarget.style.boxShadow = '0 6px 20px rgba(0, 0, 0, 0.3)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'translateY(0)';
+              e.currentTarget.style.boxShadow = '0 4px 15px rgba(0, 0, 0, 0.2)';
+            }}
+          >
+            구독 플랜 보기 →
+          </button>
+        </div>
+      </div>
+
+      {/* 섹션 4: 도움말 */}
       <div style={{
         backgroundColor: '#f9fafb',
         borderRadius: '12px',

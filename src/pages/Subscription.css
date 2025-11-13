@@ -1,0 +1,449 @@
+/* Subscription.css - 구독 플랜 페이지 스타일 */
+
+.subscription-page {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  padding: 80px 20px 60px;
+}
+
+.subscription-container {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+/* 헤더 */
+.subscription-header {
+  text-align: center;
+  color: white;
+  margin-bottom: 50px;
+  position: relative;
+}
+
+.back-button {
+  position: absolute;
+  left: 0;
+  top: 0;
+  padding: 10px 20px;
+  font-size: 16px;
+  font-weight: 600;
+  color: white;
+  background: rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.back-button:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: translateX(-3px);
+}
+
+.subscription-header h1 {
+  font-size: 48px;
+  font-weight: 800;
+  margin: 0 0 16px 0;
+  text-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+}
+
+.subscription-header p {
+  font-size: 20px;
+  opacity: 0.95;
+  margin: 0;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+/* 플랜 그리드 */
+.plans-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 30px;
+  margin-bottom: 60px;
+}
+
+/* 플랜 카드 */
+.plan-card {
+  position: relative;
+  background: white;
+  border-radius: 20px;
+  padding: 40px 32px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+  transition: all 0.4s ease;
+  border: 2px solid transparent;
+}
+
+.plan-card:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+}
+
+.plan-card.premium {
+  border: 2px solid transparent;
+  background: linear-gradient(white, white) padding-box,
+              linear-gradient(135deg, #667eea 0%, #764ba2 100%) border-box;
+  box-shadow: 0 15px 50px rgba(102, 126, 234, 0.25);
+}
+
+.plan-card.premium:hover {
+  box-shadow: 0 25px 70px rgba(102, 126, 234, 0.35);
+}
+
+.plan-card.current-plan {
+  border-color: #10b981;
+}
+
+/* 플랜 배지 */
+.plan-badge {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  padding: 6px 14px;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 700;
+  color: white;
+}
+
+.plan-badge.current {
+  background: #10b981;
+}
+
+.plan-badge.popular {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.05);
+    opacity: 0.95;
+  }
+}
+
+/* 플랜 헤더 */
+.plan-header {
+  margin-bottom: 32px;
+}
+
+.plan-header h2 {
+  font-size: 28px;
+  font-weight: 700;
+  color: #1f2937;
+  margin: 0 0 16px 0;
+}
+
+.plan-price {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+
+.plan-price .price {
+  font-size: 42px;
+  font-weight: 800;
+  color: #1f2937;
+}
+
+.plan-price .premium-price {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.plan-price .period {
+  font-size: 18px;
+  color: #6b7280;
+  font-weight: 500;
+}
+
+.plan-description {
+  font-size: 15px;
+  color: #6b7280;
+  line-height: 1.6;
+  margin: 0;
+}
+
+/* 플랜 기능 리스트 */
+.plan-features {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 32px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.plan-features li {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 15px;
+  color: #4b5563;
+}
+
+.plan-features li.premium-feature {
+  color: #1f2937;
+}
+
+.plan-features .check {
+  font-size: 18px;
+  font-weight: bold;
+  color: #10b981;
+  flex-shrink: 0;
+}
+
+.plan-features .check.premium {
+  color: #667eea;
+}
+
+/* 플랜 버튼 */
+.plan-button {
+  width: 100%;
+  padding: 16px;
+  font-size: 17px;
+  font-weight: 700;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.plan-button.current {
+  background: #f3f4f6;
+  color: #9ca3af;
+  border: 2px solid #e5e7eb;
+  cursor: not-allowed;
+}
+
+.plan-button.premium-button {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.3);
+}
+
+.plan-button.premium-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+}
+
+.plan-button.premium-button:active {
+  transform: translateY(0);
+}
+
+/* 비교 섹션 */
+.comparison-section {
+  background: white;
+  border-radius: 20px;
+  padding: 40px;
+  margin-bottom: 40px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+}
+
+.comparison-section h2 {
+  font-size: 32px;
+  font-weight: 700;
+  color: #1f2937;
+  margin: 0 0 30px 0;
+  text-align: center;
+}
+
+.comparison-table {
+  overflow-x: auto;
+}
+
+.comparison-table table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.comparison-table th {
+  padding: 16px;
+  font-size: 16px;
+  font-weight: 700;
+  color: #1f2937;
+  text-align: left;
+  border-bottom: 2px solid #e5e7eb;
+}
+
+.comparison-table th:nth-child(3) {
+  color: #667eea;
+}
+
+.comparison-table td {
+  padding: 16px;
+  font-size: 15px;
+  color: #4b5563;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.comparison-table tr:hover {
+  background: #fafafa;
+}
+
+.check-table {
+  font-size: 20px;
+  color: #10b981;
+  font-weight: bold;
+}
+
+.check-table.premium {
+  color: #667eea;
+}
+
+.cross {
+  font-size: 20px;
+  color: #d1d5db;
+}
+
+/* FAQ 섹션 */
+.faq-section {
+  background: white;
+  border-radius: 20px;
+  padding: 40px;
+  margin-bottom: 40px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+}
+
+.faq-section h2 {
+  font-size: 32px;
+  font-weight: 700;
+  color: #1f2937;
+  margin: 0 0 30px 0;
+  text-align: center;
+}
+
+.faq-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.faq-item {
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 20px 24px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.faq-item:hover {
+  background: #f3f4f6;
+}
+
+.faq-item summary {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1f2937;
+  list-style: none;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.faq-item summary::after {
+  content: '▼';
+  font-size: 12px;
+  color: #9ca3af;
+  transition: transform 0.3s ease;
+}
+
+.faq-item[open] summary::after {
+  transform: rotate(180deg);
+}
+
+.faq-item p {
+  margin: 16px 0 0 0;
+  font-size: 15px;
+  color: #6b7280;
+  line-height: 1.6;
+}
+
+/* 하단 안내 */
+.subscription-footer {
+  text-align: center;
+  color: white;
+  font-size: 14px;
+  line-height: 1.8;
+  opacity: 0.9;
+}
+
+.subscription-footer p {
+  margin: 8px 0;
+}
+
+/* 반응형 */
+@media (max-width: 768px) {
+  .subscription-page {
+    padding: 80px 16px 40px;
+  }
+
+  .subscription-header h1 {
+    font-size: 36px;
+  }
+
+  .subscription-header p {
+    font-size: 16px;
+  }
+
+  .back-button {
+    position: static;
+    display: inline-block;
+    margin-bottom: 20px;
+  }
+
+  .plans-grid {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+
+  .plan-card {
+    padding: 32px 24px;
+  }
+
+  .comparison-section,
+  .faq-section {
+    padding: 30px 20px;
+  }
+
+  .comparison-section h2,
+  .faq-section h2 {
+    font-size: 26px;
+  }
+
+  .comparison-table {
+    font-size: 14px;
+  }
+
+  .comparison-table th,
+  .comparison-table td {
+    padding: 12px 8px;
+  }
+}
+
+@media (max-width: 480px) {
+  .subscription-header h1 {
+    font-size: 32px;
+  }
+
+  .plan-header h2 {
+    font-size: 24px;
+  }
+
+  .plan-price .price {
+    font-size: 36px;
+  }
+
+  .comparison-section,
+  .faq-section {
+    padding: 24px 16px;
+  }
+}
+
